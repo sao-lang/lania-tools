@@ -35,15 +35,18 @@ interface WrapperOptions {
     responseHandler?: (res: AxiosResponse<any>) => any;
     codeHandlers?: Record<number | string, (res: AxiosResponse<any>) => any>;
     interceptors?: AxiosWrapperInterceptors;
+    enableDoubleToken?: boolean;
+    refreshAccessToken?: () => Promise<string>;
+    accessTokenExpiredCodes?: (number | string)[];
+    refreshTokenExpiredCodes?: (number | string)[];
+    onRefreshTokenExpired?: () => void;
 }
 
 interface AxiosWrapperInterceptors {
     request?: {
         onFulfilled?: (
             value: InternalAxiosRequestConfig<any>,
-        ) =>
-            | InternalAxiosRequestConfig<any>
-            | Promise<InternalAxiosRequestConfig<any>>;
+        ) => InternalAxiosRequestConfig<any> | Promise<InternalAxiosRequestConfig<any>>;
         onRejected?: (error: any) => any;
     };
     response?: {
@@ -54,9 +57,7 @@ interface AxiosWrapperInterceptors {
     };
 }
 
-interface AxiosWrapperCreateOptions
-    extends CreateAxiosDefaults,
-        WrapperOptions {}
+interface AxiosWrapperCreateOptions extends CreateAxiosDefaults, WrapperOptions {}
 
 export class AxiosWrapper {
     private instance: AxiosInstance;
@@ -73,6 +74,7 @@ export class AxiosWrapper {
     private options: WrapperOptions;
     /** 全局错误处理锁，防止重复触发 */
     private static errorLocks: Set<string | number> = new Set();
+    private refreshTokenPromise: Promise<string> | null = null;
 
     constructor(config?: any, options?: WrapperOptions) {
         this.instance = axios.create(config);
@@ -85,33 +87,27 @@ export class AxiosWrapper {
         this.concurrencyController = new GlobalConcurrencyController(
             this.options.maxConcurrent || Infinity,
         );
-        this.uploadManager = new UploadManager(
-            this.instance,
-            this.concurrencyController,
-        );
-        this.pollingManager = new PollingManager(
-            this.instance,
-            this.concurrencyController,
-        );
+        this.uploadManager = new UploadManager(this.instance, this.concurrencyController);
+        this.pollingManager = new PollingManager(this.instance, this.concurrencyController);
     }
     private instanceHandler() {
-        this.instance.defaults.adapter = async (config) => {
-            if (this.options.enableCache) {
-                const cached = this.cacheManager.get(config);
-                if (cached !== null) {
-                    return {
-                        data: cached,
-                        status: 200,
-                        statusText: 'OK',
-                        headers: {},
-                        config,
-                        request: {},
-                    };
-                }
-            }
-            const defaultAdapter = axios.defaults.adapter as AxiosAdapter;
-            return defaultAdapter(config);
-        };
+        // this.instance.defaults.adapter = async (config) => {
+        //     if (this.options.enableCache) {
+        //         const cached = this.cacheManager.get(config);
+        //         if (cached !== null) {
+        //             return {
+        //                 data: cached,
+        //                 status: 200,
+        //                 statusText: 'OK',
+        //                 headers: {},
+        //                 config,
+        //                 request: {},
+        //             };
+        //         }
+        //     }
+        //     const defaultAdapter = axios.defaults.adapter as AxiosAdapter;
+        //     return defaultAdapter(config);
+        // };
         // 请求拦截器
         this.instance.interceptors.request.use(
             async (req: InternalAxiosRequestConfig<any>) => {
@@ -120,6 +116,21 @@ export class AxiosWrapper {
                     const token = await this.options.tokenProvider();
                     req.headers = req.headers || {};
                     req.headers['Authorization'] = `Bearer ${token}`;
+                }
+                if (this.options.enableCache) {
+                    const cached = this.cacheManager.get(req);
+                    if (cached !== null) {
+                        // 构造一个类似 axios 的响应对象
+                        return Promise.reject({
+                            __fromCache: true, // 标记是缓存
+                            data: cached,
+                            status: 200,
+                            statusText: 'OK',
+                            headers: {},
+                            config: req,
+                            request: {},
+                        });
+                    }
                 }
                 if (this.options.enableDebounce) {
                     req = (await this.debounceThrottleManager.debounceRequest(
@@ -147,38 +158,19 @@ export class AxiosWrapper {
         // 响应拦截器
         this.instance.interceptors.response.use(
             async (res: AxiosResponse<any>) => {
-                if (this.options.enableCache)
-                    this.cacheManager.set(
-                        res.config,
-                        res,
-                        this.options.cacheTTL,
-                    );
-
-                const { responseHandler, codeHandlers } = this.options;
-
-                if (responseHandler) return responseHandler(res);
-
-                const { code, message } = res.data || {};
-                if (codeHandlers && code in codeHandlers) {
-                    const handler = codeHandlers[code];
-                    if (AxiosWrapper.errorLocks.has(code)) return res;
-                    AxiosWrapper.errorLocks.add(code);
-
-                    try {
-                        const result = handler(res);
-                        if (result !== undefined) return result;
-                    } finally {
-                        setTimeout(
-                            () => AxiosWrapper.errorLocks.delete(code),
-                            1000,
-                        );
-                    }
+                if (this.options.enableCache) {
+                    this.cacheManager.set(res.config, res, this.options.cacheTTL);
                 }
-
+                if (this.options.enableDoubleToken) {
+                    return await this.requestWithRefreshToken(res);
+                }
+                const { res: cbResult, flag } = this.responseCallback(res);
+                if (flag) {
+                    return cbResult;
+                }
+                const { code, message } = res.data || {};
                 if (code && code !== 0 && code !== 200) {
-                    const err = new Error(
-                        message || `Request failed with code ${code}`,
-                    );
+                    const err = new Error(message || `Request failed with code ${code}`);
                     (err as any).code = code;
                     throw err;
                 }
@@ -187,14 +179,10 @@ export class AxiosWrapper {
             },
             async (err: any) => {
                 if (err.__fromCache) return Promise.resolve(err.data);
-
-                if (this.options.enableRetry) {
-                    return this.concurrencyController.run(() =>
-                        this.retryRequest(err),
-                    );
-                }
-
                 this.options.onError?.(err);
+                if (this.options.enableRetry) {
+                    return this.concurrencyController.run(() => this.retryRequest(err));
+                }
                 return Promise.reject(err);
             },
         );
@@ -207,17 +195,129 @@ export class AxiosWrapper {
         }
     }
 
+    private async requestWithRefreshToken(res: AxiosResponse<any>) {
+        const { code } = res.data || {};
+        const {
+            accessTokenExpiredCodes = [],
+            refreshTokenExpiredCodes = [],
+            refreshAccessToken,
+            onRefreshTokenExpired,
+        } = this.options;
+
+        // 不是 token 相关的 code，直接原样返回
+        if (!accessTokenExpiredCodes.includes(code) && !refreshTokenExpiredCodes.includes(code)) {
+            return res;
+        }
+
+        // refreshToken 过期 —— 触发登出/回调并 reject
+        if (refreshTokenExpiredCodes.includes(code)) {
+            try {
+                onRefreshTokenExpired?.();
+            } finally {
+                // eslint-disable-next-line no-unsafe-finally
+                return Promise.reject(new Error('Refresh token expired'));
+            }
+        }
+
+        // accessToken 过期 —— 需要刷新 accessToken 后重试
+        if (accessTokenExpiredCodes.includes(code)) {
+            const originalConfig = res.config as InternalAxiosRequestConfig & {
+                __gotAccessToken?: boolean;
+            };
+
+            // 防止同一个请求无限循环刷新
+            if (originalConfig.__gotAccessToken) {
+                return Promise.reject(new Error('Request already retried after refresh'));
+            }
+            originalConfig.__gotAccessToken = true;
+
+            // refreshAccessToken 必须是函数
+            if (typeof refreshAccessToken !== 'function') {
+                return Promise.reject(new Error('No refreshAccessToken provided'));
+            }
+
+            // 若没有正在进行的刷新，就发起一次并把 Promise 保存为锁
+            if (!this.refreshTokenPromise) {
+                // 注意：refreshAccessToken 可能返回 string 或 Promise<string>
+                const p = (async () => {
+                    const token = await refreshAccessToken();
+                    if (!token || typeof token !== 'string') {
+                        // 规范化错误：如果刷新没拿到 token 视为失败
+                        throw new Error('refreshAccessToken did not return a valid token');
+                    }
+                    return token;
+                })();
+
+                // 覆盖成会在 settle 后清理自身的 promise
+                this.refreshTokenPromise = p.then(
+                    (t) => {
+                        this.refreshTokenPromise = null;
+                        return t;
+                    },
+                    (e) => {
+                        this.refreshTokenPromise = null;
+                        throw e;
+                    },
+                );
+            }
+
+            // 等待刷新结果（所有并发请求都会在这里 await 同一个 Promise）
+            let newToken: string;
+            try {
+                newToken = await this.refreshTokenPromise!;
+            } catch (e) {
+                // 刷新失败，触发退出/回调
+                onRefreshTokenExpired?.();
+                return Promise.reject(e);
+            }
+
+            // 合并 header（谨慎处理各种 headers 结构）
+            if (originalConfig.headers) {
+                (originalConfig.headers as any).set('Authorization', `Bearer ${newToken}`);
+            } else {
+                originalConfig.headers = {
+                    Authorization: `Bearer ${newToken}`,
+                } as any;
+            }
+
+            // 重新发送请求（会走普通的 axios 流程，但由于 _retry 已经设为 true，避免二次刷新）
+            try {
+                const retryResp = await this.instance(originalConfig);
+                return retryResp;
+            } catch (e) {
+                // 如果重试失败，根据场景可以把错误抛出或进一步处理
+                return Promise.reject(e);
+            }
+        }
+
+        // 兜底：直接返回
+        return res;
+    }
+
+    private responseCallback(res: AxiosResponse<any>) {
+        const { code } = res.data || {};
+        const { responseHandler, codeHandlers } = this.options;
+        if (responseHandler) return { res: responseHandler(res), flag: true };
+        if (codeHandlers && code in codeHandlers) {
+            const handler = codeHandlers[code];
+            if (AxiosWrapper.errorLocks.has(code)) return { res, flag: true };
+            AxiosWrapper.errorLocks.add(code);
+
+            try {
+                return { res: handler?.(res), flag: true };
+            } finally {
+                setTimeout(() => AxiosWrapper.errorLocks.delete(code), 1000);
+            }
+        }
+        return { res, flag: false };
+    }
+
     private async retryRequest(err: any) {
         const config = err.config;
         config.__retryCount = config.__retryCount || 0;
-        if (
-            config.__retryCount <
-            (this.options.retryTimes || DEFAULT_MAX_RETRIES)
-        ) {
+        if (config.__retryCount < (this.options.retryTimes || DEFAULT_MAX_RETRIES)) {
             config.__retryCount++;
-            await new Promise((r) =>
-                setTimeout(r, this.options.retryDelay || DEFAULT_RETRY_DELAY),
-            );
+            await new Promise((r) => setTimeout(r, this.options.retryDelay || DEFAULT_RETRY_DELAY));
             return this.concurrencyController.run(() => this.instance(config));
         }
         throw err;
@@ -232,17 +332,13 @@ export class AxiosWrapper {
         const cancelTokenSource = axios.CancelToken.source();
         if (config?.cancelTokenId) {
             config.cancelToken = cancelTokenSource.token;
-            this.cancelTokenManager.set(
-                config?.cancelTokenId,
-                cancelTokenSource,
-            );
+            this.cancelTokenManager.set(config?.cancelTokenId, cancelTokenSource);
         }
 
         const req = this.concurrencyController
             .run(() => this.instance[method]<T>(url, data, config))
             .finally(() => {
-                if (config?.cancelTokenId)
-                    this.cancelTokenManager.delete(config.cancelTokenId);
+                if (config?.cancelTokenId) this.cancelTokenManager.delete(config.cancelTokenId);
             });
         return req;
     }
@@ -295,10 +391,7 @@ export class AxiosWrapper {
             const cancelTokenSource = axios.CancelToken.source();
             if (config?.cancelTokenId) {
                 config.cancelToken = cancelTokenSource.token;
-                this.cancelTokenManager.set(
-                    config.cancelTokenId,
-                    cancelTokenSource,
-                );
+                this.cancelTokenManager.set(config.cancelTokenId, cancelTokenSource);
             }
             const response = await this.instance[method]<Blob>(url, {
                 ...config,
@@ -317,8 +410,7 @@ export class AxiosWrapper {
 
             return response;
         } finally {
-            if (config?.cancelTokenId)
-                this.cancelTokenManager.delete(config.cancelTokenId);
+            if (config?.cancelTokenId) this.cancelTokenManager.delete(config.cancelTokenId);
         }
     }
 }
