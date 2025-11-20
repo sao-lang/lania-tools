@@ -1,0 +1,43 @@
+module.exports = {
+    root: true,
+    parser: '@typescript-eslint/parser',
+    globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        __version: 'readonly',
+        __cwd: 'readonly',
+    },
+    env: {
+        browser: true,
+        node: true,
+        es2020: true,
+    },
+    extends: [
+        'eslint:recommended',
+        'plugin:@typescript-eslint/recommended',
+        'plugin:prettier/recommended',
+    ],
+
+    rules: {
+        quotes: ['warn', 'single'],
+        eqeqeq: ['error', 'allow-null'],
+        'no-this-before-super': 'warn',
+        'no-dupe-keys': 'error',
+        'no-undef': 'error',
+        'no-with': 'error',
+        '@typescript-eslint/ban-ts-ignore': 'off',
+        '@typescript-eslint/explicit-function-return-type': 'off',
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-unused-vars': 'warn',
+        'no-redeclare': 'error',
+        'no-const-assign': 'error',
+        '@typescript-eslint/no-var-requires': 'off',
+        'no-sparse-arrays': 'off',
+        '@typescript-eslint/ban-ts-comment': 'off',
+        '@typescript-eslint/no-non-null-assertion': 'off',
+        'prettier/prettier': 'off',
+        'no-empty': 'warn',
+        'no-async-promise-executor': 'warn',
+        'no-empty-pattern': 'warn',
+    },
+};

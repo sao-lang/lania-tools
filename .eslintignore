@@ -1,0 +1,13 @@
+*.sh
+node_modules
+*.md
+.vscode
+.idea
+dist
+.husky
+.local
+.vscode
+*.scss
+.less
+.styl
+.history
