@@ -13,7 +13,6 @@
         "eslint": "eslint ./**/*.ts --fix",
         "build": "gulp --gulpfile scripts/gulpfile.cjs build",
         "clean:tools": "rimraf packages/tools/dist",
-        "init:cz": "npx commitizen init cz-customizable --save-dev --save-exact --force",
         "commit": "git add . && cz"
     },
     "dependencies": {
