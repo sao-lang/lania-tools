@@ -1,7 +1,22 @@
-type TimeFormatter = (time: Date) => string;
+/**
+ * 时间格式化函数类型
+ * @param time Date 对象
+ * @returns 格式化后的字符串
+ */
+export type TimeFormatter = (time: Date) => string;
 
+/**
+ * 数字补零工具
+ * @param num 数字
+ * @returns 两位数字字符串，不足补零
+ */
 const padZero = (num: number): string => num.toString().padStart(2, '0');
 
+/**
+ * 拆解 Date 对象各个组件
+ * @param time Date 对象
+ * @returns 年、月、日、时、分、秒
+ */
 const parseDateComponents = (time: Date) => ({
     year: time.getFullYear(),
     month: time.getMonth() + 1,
@@ -11,6 +26,11 @@ const parseDateComponents = (time: Date) => ({
     second: time.getSeconds(),
 });
 
+/**
+ * 分割格式字符串，尝试识别常见分隔符
+ * @param formatter 格式字符串
+ * @returns [左部分, 右部分, 分隔符]
+ */
 const splitFormatter = (formatter: string): [string, string, string] => {
     const separators = ['/', '-', ':', '.'];
     const separator = separators.find((sep) => formatter.includes(sep)) || ' ';
@@ -18,6 +38,13 @@ const splitFormatter = (formatter: string): [string, string, string] => {
     return [left, right, separator];
 };
 
+/**
+ * 根据格式组件生成对应格式化字符串
+ * @param components 格式化组件字典，如 YYYY, MM, DD...
+ * @param format 格式字符串
+ * @param separator 分隔符
+ * @returns 格式化后的字符串
+ */
 const formatWithComponents = (
     components: Record<string, string>,
     format: string,
@@ -33,29 +60,29 @@ const formatWithComponents = (
     ].join('');
 };
 
-export const formatTime = (
-    time: Date | number,
-    formatter?: TimeFormatter,
-): string => {
+/**
+ * 时间格式化函数
+ * 支持：
+ * 1. 时间戳或 Date 对象
+ * 2. 自定义函数格式化
+ * 3. 默认格式化 "YYYY-MM-DD HH:mm:SS"
+ *
+ * @param time Date 对象或时间戳
+ * @param formatter 可选：格式字符串或自定义格式化函数
+ * @returns 格式化后的字符串
+ */
+export const formatTime = (time: Date | number, formatter?: TimeFormatter | string): string => {
     // 处理时间戳和 Date 对象
     const date = typeof time === 'number' ? new Date(time) : time;
 
-    // 如果 formatter 是函数，调用 formatter 函数进行自定义格式化
-    if (formatter) {
-        if (typeof formatter === 'function') {
-            return formatter(date);
-        }
+    // 如果 formatter 是函数，调用自定义函数
+    if (formatter && typeof formatter === 'function') {
+        return formatter(date);
     }
 
-    // 默认格式化逻辑
-    const {
-        year,
-        month,
-        date: day,
-        hour,
-        minute,
-        second,
-    } = parseDateComponents(date);
+    // 拆解时间组件
+    const { year, month, date: day, hour, minute, second } = parseDateComponents(date);
+
     const formattedComponents = {
         YYYY: year.toString(),
         MM: padZero(month),
@@ -72,23 +99,16 @@ export const formatTime = (
         S: second.toString(),
     };
 
+    // 默认格式：YYYY-MM-DD HH:mm:SS
     if (!formatter) {
-        // 默认格式，如果没有提供 formatter
         return `${formattedComponents.YYYY}-${formattedComponents.MM}-${formattedComponents.DD} ${formattedComponents.HH}:${formattedComponents.mm}:${formattedComponents.SS}`;
     }
 
-    const [leftFormat, rightFormat, leftSeparator] = splitFormatter(formatter);
+    // 如果 formatter 是字符串，则尝试拆分
+    const [leftFormat, rightFormat, leftSeparator] = splitFormatter(formatter as string);
 
-    const leftResult = formatWithComponents(
-        formattedComponents,
-        leftFormat,
-        leftSeparator,
-    );
-    const rightResult = formatWithComponents(
-        formattedComponents,
-        rightFormat,
-        leftSeparator,
-    );
+    const leftResult = formatWithComponents(formattedComponents, leftFormat, leftSeparator);
+    const rightResult = formatWithComponents(formattedComponents, rightFormat, leftSeparator);
 
     return `${leftResult} ${rightResult}`.trim();
 };

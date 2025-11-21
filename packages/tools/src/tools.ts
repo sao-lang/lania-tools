@@ -140,10 +140,22 @@ export function deepClone<T>(
 }
 
 type CopyOptions = {
+    /**
+     * 要复制的文本
+    */
     text?: string;
+    /**
+     * 要复制的文件路径
+    */
     imageUrl?: string;
 };
 
+
+/**
+ * @name copy
+ * @description 用于复制文本和图片。
+ * @params options - 配置。
+*/
 export const copy = async (options: CopyOptions): Promise<void> => {
     const { text, imageUrl } = options;
 
@@ -199,5 +211,3 @@ const copyTextFallback = (text: string): void => {
     }
     document.body.removeChild(textarea);
 };
-
-

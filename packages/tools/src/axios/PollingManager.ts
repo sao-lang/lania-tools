@@ -33,16 +33,13 @@ export class PollingManager {
             maxRetries = 3,
         }: PollingConfig<T> = {} as PollingConfig<T>,
     ) {
-        // 先清除
         if (this.pollingTasks.has(key)) {
             this.stopPolling(key);
         }
         let attempts = 0;
         const pollRequest = async () => {
-            // 超过最大次数，不执行了
             if (attempts >= maxRetries) return;
             try {
-                // 利用并发管理器请求
                 await this.concurrencyController.run(async () => {
                     const res = await this.instance[method](url, config);
                     onSuccess?.(res);

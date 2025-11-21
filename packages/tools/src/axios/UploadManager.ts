@@ -1,8 +1,7 @@
 import axios, { AxiosInstance, CancelTokenSource } from 'axios';
 import SparkMD5 from 'spark-md5';
 import { GlobalConcurrencyController } from './GlobalConcurrencyController';
-
-const CHUNK_SIZE = 5 * 1024 * 1024;
+import { CHUNK_SIZE } from './const';
 
 export interface UploadFileOptions {
     maxConcurrent?: number;
@@ -24,10 +23,7 @@ export class UploadManager {
         private concurrencyController: GlobalConcurrencyController,
     ) {}
 
-    async calculateFileMd5(
-        file: File,
-        chunkSize = CHUNK_SIZE,
-    ): Promise<string> {
+    async calculateFileMd5(file: File, chunkSize = CHUNK_SIZE): Promise<string> {
         return new Promise((resolve) => {
             const chunks = Math.ceil(file.size / chunkSize);
             const spark = new SparkMD5.ArrayBuffer();
@@ -55,9 +51,7 @@ export class UploadManager {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) =>
-                resolve(
-                    SparkMD5.ArrayBuffer.hash(e.target!.result as ArrayBuffer),
-                );
+                resolve(SparkMD5.ArrayBuffer.hash(e.target!.result as ArrayBuffer));
             reader.readAsArrayBuffer(chunk);
         });
     }
@@ -88,8 +82,7 @@ export class UploadManager {
                         headers: { 'Content-Type': 'multipart/form-data' },
                         cancelToken: cancelToken.token,
                         onUploadProgress: onChunkProgress
-                            ? (e: any) =>
-                                  onChunkProgress(e.loaded, e.total ?? 0)
+                            ? (e: any) => onChunkProgress(e.loaded, e.total ?? 0)
                             : undefined,
                     }),
                 );
@@ -118,8 +111,6 @@ export class UploadManager {
         const totalChunks = Math.ceil(file.size / chunkSize);
         const fileMd5 = await this.calculateFileMd5(file, chunkSize);
         const cancelToken = axios.CancelToken.source();
-
-        // 获取已上传分片（断点续传）
         let uploadedChunks = new Set<number>();
         if (enableResume && getUploadedChunksUrl) {
             const res = await this.instance.get<{ uploaded: number[] }>(
@@ -127,9 +118,7 @@ export class UploadManager {
             );
             uploadedChunks = new Set(res.data.uploaded || []);
         }
-
         let finishedChunks = uploadedChunks.size;
-
         const uploadTasks = Array.from({ length: totalChunks })
             .map((_, index) => index)
             .filter((i) => !uploadedChunks.has(i))
@@ -150,20 +139,12 @@ export class UploadManager {
                     cancelToken,
                     fileMd5,
                     chunkMd5,
-                    (loaded, total) =>
-                        onChunkProgress?.(
-                            chunkIndex,
-                            totalChunks,
-                            loaded,
-                            total,
-                        ),
+                    (loaded, total) => onChunkProgress?.(chunkIndex, totalChunks, loaded, total),
                 );
 
                 finishedChunks++;
                 onProgress?.(finishedChunks, totalChunks);
             });
-
-        // 控制并发上传
         const queue: Promise<void>[] = [];
         for (const task of uploadTasks) {
             const p = this.concurrencyController
@@ -173,10 +154,7 @@ export class UploadManager {
             if (queue.length >= maxConcurrent) await Promise.race(queue);
         }
         await Promise.all(queue);
-
-        // 上传完毕，通知服务器合并
-        await this.instance.post(`${url}/merge`, { fileMd5, totalChunks });
-
+        // await this.instance.post(`${url}/merge`, { fileMd5, totalChunks });
         return { fileMd5, totalChunks };
     }
 }

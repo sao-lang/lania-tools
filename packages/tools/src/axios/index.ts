@@ -1,5 +1,4 @@
 import axios, {
-    AxiosAdapter,
     AxiosInstance,
     AxiosRequestConfig,
     AxiosResponse,
@@ -12,189 +11,143 @@ import { DebounceThrottleManager } from './DebounceThrottleManager';
 import { UploadManager, UploadFileOptions } from './UploadManager';
 import { PollingConfig, PollingManager } from './PollingManager';
 import { CancelTokenManager } from './CancelTokenManager';
-const DEFAULT_MAX_RETRIES = 3;
-const DEFAULT_RETRY_DELAY = 1000;
+import { InterceptorManager } from './InterceptorManager';
+import { DEFAULT_MAX_RETRIES, DEFAULT_RETRY_DELAY } from './const';
 
 type AxiosWrapperMethodConfig = AxiosRequestConfig & {
+    /** 自定义取消请求的标识，用于批量取消请求 */
     cancelTokenId?: string;
 };
 
-interface WrapperOptions {
+/** AxiosWrapper 可配置项 */
+export interface WrapperOptions {
+    /** 最大并发请求数，默认为无限制 */
     maxConcurrent?: number;
+    /** 是否启用缓存机制 */
     enableCache?: boolean;
+    /** 缓存有效期（毫秒），仅在 enableCache=true 时生效 */
     cacheTTL?: number;
+    /** 是否启用防抖请求 */
     enableDebounce?: boolean;
+    /** 防抖时间间隔（毫秒） */
     debounceInterval?: number;
+    /** 是否启用节流请求 */
     enableThrottle?: boolean;
+    /** 节流时间间隔（毫秒） */
     throttleInterval?: number;
+    /** 是否启用请求失败重试 */
     enableRetry?: boolean;
+    /** 重试次数，默认为 DEFAULT_MAX_RETRIES */
     retryTimes?: number;
+    /** 重试间隔时间（毫秒），默认为 DEFAULT_RETRY_DELAY */
     retryDelay?: number;
+    /** 获取 token 的函数，用于在请求头中添加 Authorization */
     tokenProvider?: () => string | Promise<string>;
+    /** 请求或响应错误回调 */
     onError?: (err: any) => void;
+    /** 全局响应处理函数 */
     responseHandler?: (res: AxiosResponse<any>) => any;
+    /** 特定状态码处理函数 */
     codeHandlers?: Record<number | string, (res: AxiosResponse<any>) => any>;
+    /** 自定义请求/响应拦截器 */
     interceptors?: AxiosWrapperInterceptors;
+    /** 是否启用双 token 机制（accessToken + refreshToken） */
     enableDoubleToken?: boolean;
+    /** 刷新 accessToken 的函数 */
     refreshAccessToken?: () => Promise<string>;
+    /** accessToken 过期状态码 */
     accessTokenExpiredCodes?: (number | string)[];
+    /** refreshToken 过期状态码 */
     refreshTokenExpiredCodes?: (number | string)[];
+    /** refreshToken 过期时回调 */
     onRefreshTokenExpired?: () => void;
 }
 
+/** AxiosWrapper 拦截器配置 */
 interface AxiosWrapperInterceptors {
     request?: {
+        /** 请求成功时回调 */
         onFulfilled?: (
             value: InternalAxiosRequestConfig<any>,
         ) => InternalAxiosRequestConfig<any> | Promise<InternalAxiosRequestConfig<any>>;
+        /** 请求失败时回调 */
         onRejected?: (error: any) => any;
     };
     response?: {
+        /** 响应成功时回调 */
         onFulfilled?: (
             value: AxiosResponse<any, any>,
         ) => AxiosResponse<any, any> | Promise<AxiosResponse<any, any>>;
+        /** 响应失败时回调 */
         onRejected?: (error: any) => any;
     };
 }
 
+/** AxiosWrapper 创建配置，包含 Axios 默认配置和 WrapperOptions */
 interface AxiosWrapperCreateOptions extends CreateAxiosDefaults, WrapperOptions {}
 
+/**
+ * AxiosWrapper 封装类
+ * 支持：
+ * - 请求并发控制
+ * - 缓存管理
+ * - 防抖/节流
+ * - 文件上传
+ * - 轮询
+ * - 请求取消
+ * - 请求重试
+ * - 双 token 刷新
+ */
 export class AxiosWrapper {
     private instance: AxiosInstance;
-    // 并发管理器
     private concurrencyController!: GlobalConcurrencyController;
-    // 缓存管理器
     private cacheManager = new CacheManager();
-    // 防抖节流
     private debounceThrottleManager = new DebounceThrottleManager();
-    // 上传文件
     private uploadManager!: UploadManager;
     private pollingManager!: PollingManager;
     private cancelTokenManager = new CancelTokenManager();
     private options: WrapperOptions;
-    /** 全局错误处理锁，防止重复触发 */
-    private static errorLocks: Set<string | number> = new Set();
     private refreshTokenPromise: Promise<string> | null = null;
+    private interceptorManager!: InterceptorManager;
 
+    /**
+     * 创建 AxiosWrapper 实例
+     * @param config Axios 原生配置
+     * @param options WrapperOptions 扩展功能配置
+     */
     constructor(config?: any, options?: WrapperOptions) {
         this.instance = axios.create(config);
         this.options = options || {};
-        this.initMamager();
-        this.instanceHandler();
+        this.initManager();
     }
 
-    private initMamager() {
+    /** 初始化管理器实例 */
+    private initManager() {
         this.concurrencyController = new GlobalConcurrencyController(
             this.options.maxConcurrent || Infinity,
         );
         this.uploadManager = new UploadManager(this.instance, this.concurrencyController);
         this.pollingManager = new PollingManager(this.instance, this.concurrencyController);
-    }
-    private instanceHandler() {
-        // this.instance.defaults.adapter = async (config) => {
-        //     if (this.options.enableCache) {
-        //         const cached = this.cacheManager.get(config);
-        //         if (cached !== null) {
-        //             return {
-        //                 data: cached,
-        //                 status: 200,
-        //                 statusText: 'OK',
-        //                 headers: {},
-        //                 config,
-        //                 request: {},
-        //             };
-        //         }
-        //     }
-        //     const defaultAdapter = axios.defaults.adapter as AxiosAdapter;
-        //     return defaultAdapter(config);
-        // };
-        // 请求拦截器
-        this.instance.interceptors.request.use(
-            async (req: InternalAxiosRequestConfig<any>) => {
-                // 1️⃣ 默认逻辑：Token、防抖/节流、缓存
-                if (this.options.tokenProvider) {
-                    const token = await this.options.tokenProvider();
-                    req.headers = req.headers || {};
-                    req.headers['Authorization'] = `Bearer ${token}`;
-                }
-                if (this.options.enableCache) {
-                    const cached = this.cacheManager.get(req);
-                    if (cached !== null) {
-                        // 构造一个类似 axios 的响应对象
-                        return Promise.reject({
-                            __fromCache: true, // 标记是缓存
-                            data: cached,
-                            status: 200,
-                            statusText: 'OK',
-                            headers: {},
-                            config: req,
-                            request: {},
-                        });
-                    }
-                }
-                if (this.options.enableDebounce) {
-                    req = (await this.debounceThrottleManager.debounceRequest(
-                        req,
-                        this.options.debounceInterval,
-                    )) as InternalAxiosRequestConfig<any>;
-                }
-                if (this.options.enableThrottle) {
-                    req = (await this.debounceThrottleManager.throttleRequest(
-                        req,
-                        this.options.throttleInterval,
-                    )) as InternalAxiosRequestConfig<any>;
-                }
-                return req;
+        this.interceptorManager = new InterceptorManager({
+            instance: this.instance,
+            cacheManager: this.cacheManager,
+            concurrencyController: this.concurrencyController,
+            debounceThrottleManager: this.debounceThrottleManager,
+            instanceOptions: {
+                ...this.options,
+                requestWithRefreshToken: this.requestWithRefreshToken,
+                retryRequest: this.retryRequest,
             },
-            (err) => Promise.reject(err),
-        );
-        // 注册用户自定义请求拦截器
-        if (this.options.interceptors?.request) {
-            this.instance.interceptors.request.use(
-                this.options.interceptors.request.onFulfilled,
-                this.options.interceptors.request.onRejected,
-            );
-        }
-        // 响应拦截器
-        this.instance.interceptors.response.use(
-            async (res: AxiosResponse<any>) => {
-                if (this.options.enableCache) {
-                    this.cacheManager.set(res.config, res, this.options.cacheTTL);
-                }
-                if (this.options.enableDoubleToken) {
-                    return await this.requestWithRefreshToken(res);
-                }
-                const { res: cbResult, flag } = this.responseCallback(res);
-                if (flag) {
-                    return cbResult;
-                }
-                const { code, message } = res.data || {};
-                if (code && code !== 0 && code !== 200) {
-                    const err = new Error(message || `Request failed with code ${code}`);
-                    (err as any).code = code;
-                    throw err;
-                }
-
-                return res;
-            },
-            async (err: any) => {
-                if (err.__fromCache) return Promise.resolve(err.data);
-                this.options.onError?.(err);
-                if (this.options.enableRetry) {
-                    return this.concurrencyController.run(() => this.retryRequest(err));
-                }
-                return Promise.reject(err);
-            },
-        );
-        // 注册用户自定义响应拦截器
-        if (this.options.interceptors?.response) {
-            this.instance.interceptors.response.use(
-                this.options.interceptors.response.onFulfilled,
-                this.options.interceptors.response.onRejected,
-            );
-        }
+        });
     }
 
+    /**
+     * 双 token 刷新逻辑
+     * - 当 accessToken 过期时，自动调用 refreshAccessToken
+     * - 当 refreshToken 过期时，触发 onRefreshTokenExpired
+     * @param res AxiosResponse 响应对象
+     * @returns 响应结果或 Promise.reject
+     */
     private async requestWithRefreshToken(res: AxiosResponse<any>) {
         const { code } = res.data || {};
         const {
@@ -204,12 +157,10 @@ export class AxiosWrapper {
             onRefreshTokenExpired,
         } = this.options;
 
-        // 不是 token 相关的 code，直接原样返回
         if (!accessTokenExpiredCodes.includes(code) && !refreshTokenExpiredCodes.includes(code)) {
             return res;
         }
 
-        // refreshToken 过期 —— 触发登出/回调并 reject
         if (refreshTokenExpiredCodes.includes(code)) {
             try {
                 onRefreshTokenExpired?.();
@@ -219,36 +170,27 @@ export class AxiosWrapper {
             }
         }
 
-        // accessToken 过期 —— 需要刷新 accessToken 后重试
         if (accessTokenExpiredCodes.includes(code)) {
             const originalConfig = res.config as InternalAxiosRequestConfig & {
                 __gotAccessToken?: boolean;
             };
-
-            // 防止同一个请求无限循环刷新
             if (originalConfig.__gotAccessToken) {
                 return Promise.reject(new Error('Request already retried after refresh'));
             }
             originalConfig.__gotAccessToken = true;
 
-            // refreshAccessToken 必须是函数
             if (typeof refreshAccessToken !== 'function') {
                 return Promise.reject(new Error('No refreshAccessToken provided'));
             }
 
-            // 若没有正在进行的刷新，就发起一次并把 Promise 保存为锁
             if (!this.refreshTokenPromise) {
-                // 注意：refreshAccessToken 可能返回 string 或 Promise<string>
                 const p = (async () => {
                     const token = await refreshAccessToken();
                     if (!token || typeof token !== 'string') {
-                        // 规范化错误：如果刷新没拿到 token 视为失败
                         throw new Error('refreshAccessToken did not return a valid token');
                     }
                     return token;
                 })();
-
-                // 覆盖成会在 settle 后清理自身的 promise
                 this.refreshTokenPromise = p.then(
                     (t) => {
                         this.refreshTokenPromise = null;
@@ -261,57 +203,36 @@ export class AxiosWrapper {
                 );
             }
 
-            // 等待刷新结果（所有并发请求都会在这里 await 同一个 Promise）
             let newToken: string;
             try {
                 newToken = await this.refreshTokenPromise!;
             } catch (e) {
-                // 刷新失败，触发退出/回调
                 onRefreshTokenExpired?.();
                 return Promise.reject(e);
             }
 
-            // 合并 header（谨慎处理各种 headers 结构）
             if (originalConfig.headers) {
                 (originalConfig.headers as any).set('Authorization', `Bearer ${newToken}`);
             } else {
-                originalConfig.headers = {
-                    Authorization: `Bearer ${newToken}`,
-                } as any;
+                originalConfig.headers = { Authorization: `Bearer ${newToken}` } as any;
             }
 
-            // 重新发送请求（会走普通的 axios 流程，但由于 _retry 已经设为 true，避免二次刷新）
             try {
                 const retryResp = await this.instance(originalConfig);
                 return retryResp;
             } catch (e) {
-                // 如果重试失败，根据场景可以把错误抛出或进一步处理
                 return Promise.reject(e);
             }
         }
 
-        // 兜底：直接返回
         return res;
     }
 
-    private responseCallback(res: AxiosResponse<any>) {
-        const { code } = res.data || {};
-        const { responseHandler, codeHandlers } = this.options;
-        if (responseHandler) return { res: responseHandler(res), flag: true };
-        if (codeHandlers && code in codeHandlers) {
-            const handler = codeHandlers[code];
-            if (AxiosWrapper.errorLocks.has(code)) return { res, flag: true };
-            AxiosWrapper.errorLocks.add(code);
-
-            try {
-                return { res: handler?.(res), flag: true };
-            } finally {
-                setTimeout(() => AxiosWrapper.errorLocks.delete(code), 1000);
-            }
-        }
-        return { res, flag: false };
-    }
-
+    /**
+     * 请求重试逻辑
+     * @param err Axios 错误对象
+     * @returns 重试后的响应或抛出错误
+     */
     private async retryRequest(err: any) {
         const config = err.config;
         config.__retryCount = config.__retryCount || 0;
@@ -323,6 +244,14 @@ export class AxiosWrapper {
         throw err;
     }
 
+    /**
+     * 请求封装
+     * @param method 请求方法：'get' | 'post' | 'put' | 'delete'
+     * @param url 请求地址
+     * @param data 请求数据
+     * @param config 请求配置，可含 cancelTokenId
+     * @returns AxiosResponse
+     */
     private async requestWrapper<T>(
         method: 'get' | 'post' | 'put' | 'delete',
         url: string,
@@ -332,7 +261,7 @@ export class AxiosWrapper {
         const cancelTokenSource = axios.CancelToken.source();
         if (config?.cancelTokenId) {
             config.cancelToken = cancelTokenSource.token;
-            this.cancelTokenManager.set(config?.cancelTokenId, cancelTokenSource);
+            this.cancelTokenManager.set(config.cancelTokenId, cancelTokenSource);
         }
 
         const req = this.concurrencyController
@@ -340,47 +269,72 @@ export class AxiosWrapper {
             .finally(() => {
                 if (config?.cancelTokenId) this.cancelTokenManager.delete(config.cancelTokenId);
             });
+
         return req;
     }
 
+    /** GET 请求 */
     public get<T>(url: string, config?: AxiosRequestConfig) {
         return this.requestWrapper<T>('get', url, undefined, config);
     }
+
+    /** POST 请求 */
     public post<T>(url: string, data?: any, config?: AxiosRequestConfig) {
         return this.requestWrapper<T>('post', url, data, config);
     }
+
+    /** PUT 请求 */
     public put<T>(url: string, data?: any, config?: AxiosRequestConfig) {
         return this.requestWrapper<T>('put', url, data, config);
     }
+
+    /** DELETE 请求 */
     public delete<T>(url: string, config?: AxiosRequestConfig) {
         return this.requestWrapper<T>('delete', url, undefined, config);
     }
 
-    // ---------------- 文件上传 ----------------
+    /**
+     * 上传文件
+     * @param url 上传地址
+     * @param file 文件对象
+     * @param options UploadFileOptions 上传配置
+     */
     public uploadFile(url: string, file: File, options?: UploadFileOptions) {
         return this.uploadManager.uploadFile(url, file, options);
     }
 
-    // ---------------- 轮询 ----------------
+    /** 开始轮询 */
     public startPolling<T>(config: PollingConfig<T>) {
         this.pollingManager.poll(config);
     }
+
+    /** 停止轮询 */
     public stopPolling(key: string) {
         this.pollingManager.stopPolling(key);
     }
 
-    // ---------------- 取消请求 ----------------
+    /** 取消指定请求 */
     public cancelRequest(tokenId: string) {
         this.cancelTokenManager.cancelById(tokenId);
     }
 
+    /** 取消所有请求 */
     public cancelAllRequests() {
         this.cancelTokenManager.cancelAll();
     }
 
+    /** 清除缓存 */
     public clearCache() {
         this.cacheManager.clear();
     }
+
+    /**
+     * 下载文件
+     * @param url 下载地址
+     * @param method 请求方法
+     * @param filename 文件名
+     * @param config 请求配置，可含 cancelTokenId
+     */
     public async downloadFile(
         url: string,
         method: 'get' | 'post' = 'get',
@@ -393,12 +347,12 @@ export class AxiosWrapper {
                 config.cancelToken = cancelTokenSource.token;
                 this.cancelTokenManager.set(config.cancelTokenId, cancelTokenSource);
             }
+
             const response = await this.instance[method]<Blob>(url, {
                 ...config,
-                responseType: 'blob', // 必须设置为 blob
+                responseType: 'blob',
             });
 
-            // 自动创建下载链接
             const blobUrl = URL.createObjectURL(response.data);
             const a = document.createElement('a');
             a.href = blobUrl;
@@ -416,12 +370,18 @@ export class AxiosWrapper {
 }
 
 /**
- * 工厂模式
- * 适用项目里面多套api的情况
+ * AxiosWrapper 工厂类
+ * 支持多套 API 实例管理
  */
 export class AxiosWrapperFactory {
     private static instances: Map<string, AxiosWrapper> = new Map();
 
+    /**
+     * 创建或获取 AxiosWrapper 实例
+     * @param name 实例名称
+     * @param config 创建配置
+     * @returns AxiosWrapper 实例
+     */
     public static create(
         name: string,
         config?: AxiosWrapperCreateOptions & { maxConcurrent?: number },
