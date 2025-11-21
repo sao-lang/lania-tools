@@ -19,7 +19,7 @@ export default [
             {
                 dir: resolveSubPath('packages', 'tools', 'dist', 'cjs'),
                 format: 'cjs',
-                entryFileNames: '[name].cjs.js',
+                entryFileNames: '[name].cjs.cjs',
                 exports: 'named', // 添加这一行
             },
             {
@@ -47,7 +47,7 @@ export default [
             {
                 dir: resolveSubPath('packages', 'tools', 'dist', 'cjs', 'axios'),
                 format: 'cjs',
-                entryFileNames: '[name].cjs.js',
+                entryFileNames: '[name].cjs.cjs',
                 exports: 'named', // 添加这一行
             },
             {

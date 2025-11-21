@@ -73,13 +73,13 @@ export const resolveSubPath = (...subPaths) => {
     if (Array.isArray(firstSubPaths)) {
         return firstSubPaths.reduce(
             (acc, cur) => (cur && typeof cur === 'string' ? `${acc}/${cur}` : acc),
-            resolve(__dirname, `../`),
+            resolve(__dirname, '../'),
         );
     }
     if (subPaths.length > 0) {
         return subPaths.reduce(
             (acc, cur) => (cur && typeof cur === 'string' ? `${acc}/${cur}` : acc),
-            resolve(__dirname, `../`),
+            resolve(__dirname, '../'),
         );
     }
     return resolve(__dirname, `../${firstSubPaths}`);
@@ -97,10 +97,10 @@ const { version } = getPackageJson();
 export const createCommonInjectVars = () => {
     return {
         __dirname: {
-            raw: "(() => { const { pathname } = new URL(import.meta.url);const isWin = process.platform === 'win32';const filePath = isWin && pathname.startsWith('/') ? pathname.slice(1) : pathname;return filePath.slice(0, filePath.lastIndexOf('/'));})()\n",
+            raw: '(() => { const { pathname } = new URL(import.meta.url);const isWin = process.platform === \'win32\';const filePath = isWin && pathname.startsWith(\'/\') ? pathname.slice(1) : pathname;return filePath.slice(0, filePath.lastIndexOf(\'/\'));})()\n',
         },
         __filename: {
-            raw: "(() => {const { pathname } = new URL(import.meta.url);return process.platform === 'win32' && pathname.startsWith('/') ? pathname.slice(1) : pathname; })()\n",
+            raw: '(() => {const { pathname } = new URL(import.meta.url);return process.platform === \'win32\' && pathname.startsWith(\'/\') ? pathname.slice(1) : pathname; })()\n',
         },
         __version: JSON.stringify(version),
         __cwd: {

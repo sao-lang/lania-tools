@@ -4,7 +4,6 @@ import axios, {
     AxiosResponse,
     CreateAxiosDefaults,
     InternalAxiosRequestConfig,
-    AxiosHeaders,
 } from 'axios';
 import { GlobalConcurrencyController } from './GlobalConcurrencyController';
 import { CacheManager } from './CacheManager';
@@ -108,10 +107,14 @@ export interface WrapperOptions {
      */
     enableDoubleToken?: boolean;
     /**
+     * 获取refreshToken。
+     */
+    getRefreshToken?: () => string | Promise<string>;
+    /**
      * 执行刷新 Token 的具体逻辑。
      * 应返回新的 Access Token 字符串。
      */
-    refreshAccessToken?: () => Promise<string>;
+    refreshAccessToken?: (refreshToken: string) => string | Promise<string>;
     /**
      * 后端返回的标志 Access Token 过期的状态码列表。
      * @example [401, 40101]
@@ -270,6 +273,7 @@ export class AxiosWrapper {
             refreshTokenExpiredCodes = [],
             refreshAccessToken,
             onRefreshTokenExpired,
+            getRefreshToken,
         } = this.options;
 
         // 如果状态码不在过期列表中，直接返回原响应（交给后续业务处理）
@@ -307,9 +311,13 @@ export class AxiosWrapper {
             // 如果当前没有正在进行的刷新任务，则创建一个
             if (!this.refreshTokenPromise) {
                 const p = (async () => {
-                    const token = await refreshAccessToken();
+                    const refreshToken = await getRefreshToken?.();
+                    if (!refreshToken) {
+                        throw new Error('Please confirm that the refreshToken is correct.');
+                    }
+                    const token = await refreshAccessToken(refreshToken);
                     if (!token || typeof token !== 'string') {
-                        throw new Error('refreshAccessToken did not return a valid token');
+                        throw new Error('RefreshAccessToken did not return a valid token');
                     }
                     return token;
                 })();
@@ -339,7 +347,10 @@ export class AxiosWrapper {
 
             // 更新 Header (兼容新旧版本 Axios 写法)
             const authValue = `Bearer ${newToken}`;
-            if (originalConfig.headers && typeof (originalConfig.headers as any).set === 'function') {
+            if (
+                originalConfig.headers &&
+                typeof (originalConfig.headers as any).set === 'function'
+            ) {
                 (originalConfig.headers as any).set('Authorization', authValue);
             } else {
                 originalConfig.headers = {
@@ -376,7 +387,7 @@ export class AxiosWrapper {
             config.__retryCount++;
             // 延迟等待
             await new Promise((r) => setTimeout(r, this.options.retryDelay || DEFAULT_RETRY_DELAY));
-            
+
             // 重新将请求放入并发控制器运行
             return this.concurrencyController.run(() => this.instance(config));
         }
@@ -388,12 +399,8 @@ export class AxiosWrapper {
      * 通用请求包装器
      * 统一处理：CancelToken 注入、并发控制队列
      */
-    private async requestWrapper<T>(
-        method: 'get' | 'post' | 'put' | 'delete',
-        url: string,
-        data?: any,
-        config?: AxiosWrapperMethodConfig,
-    ) {
+    public async request<T>(config: AxiosWrapperMethodConfig) {
+        const { method, url, data, params, cancelTokenId } = config;
         // 1. 处理取消令牌
         const cancelTokenSource = axios.CancelToken.source();
         if (config?.cancelTokenId) {
@@ -402,31 +409,33 @@ export class AxiosWrapper {
         }
 
         // 2. 放入并发控制器执行
-        const req = this.concurrencyController
+        const req = await this.concurrencyController
             .run(() => {
                 // 严格区分 GET/DELETE 和 POST/PUT 的参数签名
                 if (method === 'get' || method === 'delete') {
-                    return this.instance[method]<T>(url, config);
+                    return this.instance[method]<T>(url!, { ...(config ?? {}), params });
                 } else {
-                    return this.instance[method]<T>(url, data, config);
+                    return this.instance[method as 'post' | 'put']<T>(url!, data, config);
                 }
             })
             .finally(() => {
                 // 3. 请求完成后清理取消令牌
-                if (config?.cancelTokenId) this.cancelTokenManager.delete(config.cancelTokenId);
+                if (cancelTokenId) this.cancelTokenManager.delete(cancelTokenId);
             });
 
         return req;
     }
-
     /**
      * 发起 GET 请求
      * @template T - 响应数据类型
      * @param url - 请求路径
+     * @param data - 请求体数据 (Payload)
      * @param config - Axios 配置
      */
-    public get<T>(url: string, config?: AxiosRequestConfig) {
-        return this.requestWrapper<T>('get', url, undefined, config);
+    public get<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
+        config.url = url ?? config.url;
+        config.params = data ?? config.data;
+        return this.request<T>({ ...config, method: 'get' });
     }
 
     /**
@@ -436,8 +445,10 @@ export class AxiosWrapper {
      * @param data - 请求体数据 (Payload)
      * @param config - Axios 配置
      */
-    public post<T>(url: string, data?: any, config?: AxiosRequestConfig) {
-        return this.requestWrapper<T>('post', url, data, config);
+    public post<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
+        config.url = url ?? config.url;
+        config.data = data ?? config.data;
+        return this.request<T>({ ...config, method: 'post' });
     }
 
     /**
@@ -447,8 +458,10 @@ export class AxiosWrapper {
      * @param data - 请求体数据
      * @param config - Axios 配置
      */
-    public put<T>(url: string, data?: any, config?: AxiosRequestConfig) {
-        return this.requestWrapper<T>('put', url, data, config);
+    public put<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
+        config.url = url ?? config.url;
+        config.data = data ?? config.data;
+        return this.request<T>({ ...config, method: 'put' });
     }
 
     /**
@@ -457,8 +470,10 @@ export class AxiosWrapper {
      * @param url - 请求路径
      * @param config - Axios 配置
      */
-    public delete<T>(url: string, config?: AxiosRequestConfig) {
-        return this.requestWrapper<T>('delete', url, undefined, config);
+    public delete<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
+        config.url = url ?? config.url;
+        config.params = data ?? config.data;
+        return this.request<T>({ ...config, method: 'delete' });
     }
 
     /**
@@ -547,7 +562,9 @@ export class AxiosWrapper {
                 const disposition = response.headers['content-disposition'];
                 if (disposition) {
                     // 尝试解析 filename= 或 filename*=UTF-8''
-                    const match = disposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
+                    const match = disposition.match(
+                        /filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i,
+                    );
                     if (match && match[1]) {
                         finalFilename = decodeURIComponent(match[1]);
                     }
@@ -563,7 +580,7 @@ export class AxiosWrapper {
             a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
-            
+
             // 延迟清理资源
             setTimeout(() => {
                 document.body.removeChild(a);

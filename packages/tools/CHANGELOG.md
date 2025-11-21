@@ -1,5 +1,17 @@
 # @lania-tools/tools
 
+## 1.0.2
+
+### Patch Changes
+
+-   更新package.json导入的问题
+
+## 1.0.1
+
+### Patch Changes
+
+-   更新文档注释以及部分逻辑优化
+
 ## 1.0.0
 
 ### Major Changes

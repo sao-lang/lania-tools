@@ -1,7 +1,7 @@
 {
     "name": "@lania-tools/tools",
-    "version": "1.0.0",
-    "main": "dist/cjs/index.cjs.js",
+    "version": "1.0.2",
+    "main": "dist/cjs/index.cjs.cjs",
     "module": "dist/esm/index.esm.js",
     "types": "dist/types/index.d.ts",
     "publishConfig": {
@@ -14,67 +14,67 @@
     "exports": {
         ".": {
             "import": "./dist/esm/index.esm.js",
-            "require": "./dist/cjs/index.cjs.js",
+            "require": "./dist/cjs/index.cjs.cjs",
             "types": "./dist/types/index.d.ts"
         },
         "./axios-wrapper": {
             "import": "./dist/esm/axios/index.esm.js",
-            "require": "./dist/cjs/axios/index.cjs.js",
+            "require": "./dist/cjs/axios/index.cjs.cjs",
             "types": "./dist/types/axios/index.d.ts"
         },
         "./draggable": {
             "import": "./dist/esm/draggable.esm.js",
-            "require": "./dist/cjs/draggable.cjs.js",
+            "require": "./dist/cjs/draggable.cjs.cjs",
             "types": "./dist/types/draggable.d.ts"
         },
         "./event-bus": {
             "import": "./dist/esm/event-bus.esm.js",
-            "require": "./dist/cjs/event-bus.cjs.js",
+            "require": "./dist/cjs/event-bus.cjs.cjs",
             "types": "./dist/types/event-bus.d.ts"
         },
         "./convert-chinese-text": {
             "import": "./dist/esm/convert-chinese-text.esm.js",
-            "require": "./dist/cjs/convert-chinese-text.cjs.js",
+            "require": "./dist/cjs/convert-chinese-text.cjs.cjs",
             "types": "./dist/types/convert-chinese-text.d.ts"
         },
         "./sse-client": {
             "import": "./dist/esm/sse-client.esm.js",
-            "require": "./dist/cjs/sse-client.cjs.js",
+            "require": "./dist/cjs/sse-client.cjs.cjs",
             "types": "./dist/types/sse-client.d.ts"
         },
         "./store": {
             "import": "./dist/esm/store.esm.js",
-            "require": "./dist/cjs/store.cjs.js",
+            "require": "./dist/cjs/store.cjs.cjs",
             "types": "./dist/types/store.d.ts"
         },
         "./format-time": {
             "import": "./dist/esm/format-time.esm.js",
-            "require": "./dist/cjs/format-time.cjs.js",
+            "require": "./dist/cjs/format-time.cjs.cjs",
             "types": "./dist/types/format-time.d.ts"
         },
         "./tools": {
             "import": "./dist/esm/tools.esm.js",
-            "require": "./dist/cjs/tools.cjs.js",
+            "require": "./dist/cjs/tools.cjs.cjs",
             "types": "./dist/types/tools.d.ts"
         },
         "./type": {
             "import": "./dist/esm/type.esm.js",
-            "require": "./dist/cjs/type.cjs.js",
+            "require": "./dist/cjs/type.cjs.cjs",
             "types": "./dist/types/type.d.ts"
         },
         "./validator": {
             "import": "./dist/esm/validator.esm.js",
-            "require": "./dist/cjs/validator.cjs.js",
+            "require": "./dist/cjs/validator.cjs.cjs",
             "types": "./dist/types/validator.d.ts"
         },
         "./web-storage-helper": {
             "import": "./dist/esm/web-storage-helper.esm.js",
-            "require": "./dist/cjs/web-storage-helper.cjs.js",
+            "require": "./dist/cjs/web-storage-helper.cjs.cjs",
             "types": "./dist/types/web-storage-helper.d.ts"
         },
         "./websocket-client": {
             "import": "./dist/esm/websocket-client.esm.js",
-            "require": "./dist/cjs/websocket-client.cjs.js",
+            "require": "./dist/cjs/websocket-client.cjs.cjs",
             "types": "./dist/types/websocket-client.d.ts"
         }
     },
