@@ -1,6 +1,6 @@
 {
     "name": "@lania-tools/tools",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "main": "dist/cjs/index.cjs.cjs",
     "module": "dist/esm/index.esm.js",
     "types": "dist/types/index.d.ts",

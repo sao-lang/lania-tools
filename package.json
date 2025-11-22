@@ -8,7 +8,7 @@
         "changeset": "changeset",
         "vp": "changeset version",
         "release": "pnpm build && pnpm release:only",
-        "release:only": "nrm use npm && changeset publish --registry=https://registry.npmjs.org",
+        "release:only": "nrm use npm && changeset publish --registry=https://registry.npmjs.org && nrm use taobao",
         "prepare": "husky install",
         "eslint": "eslint ./**/*.ts --fix",
         "build": "gulp --gulpfile scripts/gulpfile.cjs build",

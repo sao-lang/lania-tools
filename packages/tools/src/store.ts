@@ -1,4 +1,4 @@
-import { deepClone } from './tools';
+import { deepClone, isDeepEqual } from './tools';
 
 /**
  * 异步或同步动作对象。
@@ -126,47 +126,35 @@ export class Store<
     D extends Record<string, any>,
     R extends ReducersMap<S> = ReducersMap<S>,
 > {
-    /** 当前状态对象（不可直接修改） */
     private state: S;
-
-    /** reducers 映射表 */
     private reducers: R;
-
-    /** 插件数组 */
     private plugins: StorePlugin<S>[];
-
-    /** 状态订阅者列表 */
     private subscribers: Set<(state: S) => void>;
 
-    /**
-     * 属性监听器集合
-     * key: 字符串路径
-     * value: 监听器数组
-     */
+    // 状态监听器集合：移除 deep 代理相关的复杂性
     private watchedProperties: Map<
         string,
         {
             callback: (newValue: any, oldValue: any) => void;
             options: { immediate: boolean; deep: boolean };
-            value: any;
+            value: any; // 存储上一次的值
         }[]
     >;
 
-    /** 派生状态定义（每个字段是一个函数） */
     private derivedState: DerivedState<S, D>;
-
-    /** 用于保存状态快照（支持撤销功能） */
     private snapshots: S[] = [];
 
-    /** 自动生成的 actions，类型安全 */
-    public actions: ActionsFromReducers<S, R>;
+    // --- 新增：派生状态缓存字段 ---
+    private derivedStateCache: {
+        value: D | null;
+        lastStateReference: S | null;
+    } = { value: null, lastStateReference: null };
 
-    /** dispatch 方法（已类型安全） */
+    public actions: ActionsFromReducers<S, R>;
     public dispatch: DispatchFromReducers<S, R>;
 
     /**
-     * 获取全量 state 或某一嵌套值（通过路径）。
-     * @param initialState - 初始状态。
+     * @param initialState - 初始的state。
      * @param reducers - 状态派发器。
      * @param derivedState - 衍生状态。
      * @param plugins - 插件。
@@ -191,21 +179,19 @@ export class Store<
 
         this.initializePlugins();
 
-        /**
-         * 自动生成 dispatch
-         * - 支持 AsyncAction
-         * - 支持数组格式的批量 dispatch
-         * - 支持插件监听错误、状态变化
-         */
+        /** 改造后的 dispatch：更清晰地处理状态更新和通知 */
         this.dispatch = async (action: any) => {
             try {
                 const actions = Array.isArray(action) ? action : [action];
-                const oldState = { ...this.state };
+                const oldState = this.state; // 引用旧状态
+
+                let newState = this.state; // 使用一个临时变量来累积更新
 
                 for (const act of actions) {
                     // 1. 执行异步函数（若存在）
                     if (act.asyncFunc) {
-                        act.payload = await act.asyncFunc(this.state);
+                        // 注意：asyncFunc 传入的是当前累积的状态
+                        act.payload = await act.asyncFunc(newState);
                     }
 
                     // 2. 执行 reducer
@@ -215,19 +201,29 @@ export class Store<
                         continue;
                     }
 
-                    this.state = reducer(this.state, act.payload);
+                    // 累积状态更新
+                    newState = reducer(newState, act.payload);
                 }
 
-                // 3. 通知 watchers
-                this.notifyWatchers(this.state);
+                // 如果状态引用未改变，则不进行后续通知（仅针对严格不可变数据）
+                if (newState === oldState) {
+                    return;
+                }
 
-                // 4. 通知 subscribers
+                // 最终更新状态
+                this.state = newState;
+
+                // 3. 通知 Watchers 和 Subscribers
+                this.notifyWatchers(this.state);
                 this.subscribers.forEach((subscriber) => subscriber(this.state));
 
-                // 5. 插件 onStateChange
+                // 4. 插件 onStateChange
                 this.plugins.forEach((plugin) =>
                     plugin.onStateChange?.(this, this.state, oldState),
                 );
+
+                // 5. 清除 derivedState 缓存，强制下次重新计算
+                this.derivedStateCache.value = null;
             } catch (e) {
                 this.plugins.forEach((plugin) => plugin?.onError?.(this, e as Error));
                 throw e;
@@ -241,19 +237,15 @@ export class Store<
         });
     }
 
-    /**
-     * 创建单个 action 函数。
-     * @param type - reducer 的 key
-     */
     private createAction<K extends keyof R>(
         type: K,
     ): (payload: ReducerPayload<R[K]>) => Promise<void> {
-        return (payload) => this.dispatch({ type, payload });
+        return (payload) => this.dispatch({ type, payload } as any);
     }
 
     /**
-     * 获取全量 state 或某一嵌套值（通过路径）。
-     * @param path - 如 "a.b.c"，不传则返回整个 state。
+     * @description 获取state
+     * @param path 匹配state的嵌套的key，类似a.b.c，不传返回整个派生状态对象。
      */
     public getState<P extends string = ''>(path?: P): FromPathType<P, S, S> {
         return path
@@ -262,22 +254,40 @@ export class Store<
     }
 
     /**
-     * 获取派生状态。
-     * @param path - D 的 key，不传返回整个派生状态对象。
+     * @description 获取衍生状态
+     * @param path - 匹配derivedState的嵌套的key，类似a.b.c，不传返回整个派生状态对象。
      */
     public getDerivedState<P extends keyof D | '' = ''>(path?: P): GetDerivedStateType<S, D, P> {
-        if (!path) {
-            return Object.fromEntries(
-                Object.entries(this.derivedState).map(([key, func]) => [key, func(this.state)]),
-            ) as any;
+        const { value, lastStateReference } = this.derivedStateCache;
+
+        // 检查缓存是否有效：如果 state 引用未变，则使用缓存
+        if (value && lastStateReference === this.state) {
+            if (!path) return value as any;
+            // eslint-disable-next-line no-prototype-builtins
+            return value.hasOwnProperty(path) ? value[path] : (undefined as never);
         }
+
+        // 缓存失效或首次访问，重新计算所有派生状态
+        const calculatedDerivedState = Object.fromEntries(
+            Object.entries(this.derivedState).map(([key, func]) => [key, func(this.state)]),
+        ) as D;
+
+        // 更新缓存
+        this.derivedStateCache.value = calculatedDerivedState;
+        this.derivedStateCache.lastStateReference = this.state;
+
+        if (!path) {
+            return calculatedDerivedState as any;
+        }
+
         // eslint-disable-next-line no-prototype-builtins
-        if (!this.derivedState.hasOwnProperty(path)) return undefined as never;
-        return this.derivedState[path](this.state) as any;
+        if (!calculatedDerivedState.hasOwnProperty(path)) return undefined as never;
+        return calculatedDerivedState[path] as any;
     }
 
     /**
-     * 添加插件。
+     * @description 添加中间件
+     * @param plugin 要添加的中间件
      */
     public addPlugin(plugin: StorePlugin<S> | StorePlugin<S>[]): void {
         const plugins = Array.isArray(plugin) ? plugin : [plugin];
@@ -285,14 +295,13 @@ export class Store<
         this.plugins.push(...plugins);
     }
 
-    /** 插件初始化 */
     private initializePlugins(): void {
         this.plugins.forEach((plugin) => plugin.onInit?.(this));
     }
 
     /**
-     * 订阅状态变化。
-     * @returns 取消订阅函数
+     * @description 订阅属性变化
+     * @param subscriber 订阅的回调，有state改变时都会执行
      */
     public subscribe(subscriber: (state: S) => void): () => void {
         this.subscribers.add(subscriber);
@@ -300,13 +309,10 @@ export class Store<
     }
 
     /**
-     * 监听单个属性变化（可深度监听，支持 immediate）。
-     *
-     * @param path - 属性路径，如 "user.info.name"
-     * @param callback - 变化回调
-     * @param options.immediate - 是否立即触发一次
-     * @param options.deep - 是否深度监听
-     * @returns 取消监听函数
+     * @description 监听变化
+     * @param path 匹配state的嵌套的key，类似a.b.c，不传返回整个派生状态对象。
+     * @param callback 监听的回调。
+     * @param options 配置，immediate 立即响应修改， deep 监听嵌套对象内部值的修改
      */
     public watchProperty<P extends string>(
         path: P,
@@ -320,7 +326,6 @@ export class Store<
         watchList.push({ callback, options: { immediate, deep }, value: initialValue });
         this.watchedProperties.set(path, watchList);
 
-        deep && this.applyDeepProxy(path, initialValue);
         immediate && callback(initialValue, initialValue);
 
         return () => {
@@ -336,84 +341,60 @@ export class Store<
     }
 
     /**
-     * 通知属性监听器。
+     * 改造后的通知属性监听器：
+     * - 接收旧状态，以便进行比较。
+     * - 对于 deep watch，使用 isDeepEqual 进行检查。
      */
     private notifyWatchers(newState: S): void {
         this.watchedProperties.forEach((watchList, path) => {
             const newValue = this.getNestedValue(newState, path);
             watchList.forEach((data) => {
-                if (newValue !== data.value) {
+                const { deep } = data.options;
+
+                let hasChanged = false;
+                if (deep) {
+                    // Deep Watch：使用深度比较
+                    hasChanged = !isDeepEqual(newValue, data.value);
+                } else {
+                    // Shallow Watch：简单引用或值比较
+                    hasChanged = newValue !== data.value;
+                }
+
+                if (hasChanged) {
                     data.callback(newValue, data.value);
-                    data.value = newValue;
+                    // 必须更新存储的值，以便下次比较
+                    data.value = deep ? deepClone(newValue) : newValue;
                 }
             });
         });
     }
 
-    /**
-     * 深度代理对象，用于 deep watch。
-     */
-    private applyDeepProxy(path: string, obj: any): void {
-        const handler = {
-            set: (target: any, prop: string | symbol, value: any): boolean => {
-                const oldValue = target[prop];
+    // 移除 applyDeepProxy 方法
+    // private applyDeepProxy...
 
-                if (oldValue !== value) {
-                    target[prop] = value;
-
-                    const fullPath = `${path}.${String(prop)}`;
-                    const watchData = this.watchedProperties.get(fullPath);
-
-                    if (watchData) {
-                        watchData.forEach((data) => {
-                            data.callback(value, oldValue);
-                        });
-                        this.notifyWatchers(this.state);
-                    }
-
-                    if (typeof value === 'object' && value !== null) {
-                        this.applyDeepProxy(fullPath, value);
-                    }
-                }
-                return true;
-            },
-        };
-
-        Object.keys(obj).forEach((key) => {
-            if (typeof obj[key] === 'object' && obj[key] !== null) {
-                obj[key] = new Proxy(obj[key], handler);
-            }
-        });
-
-        this.state = new Proxy(this.state, handler);
-    }
-
-    /**
-     * 获取嵌套属性的工具函数。
-     * @param obj - 任意对象
-     * @param path - 如 "a.b.c"
-     */
     private getNestedValue(obj: any, path: string): any {
         return path.split('.').reduce((o, p) => o && o[p], obj);
     }
 
     /**
-     * 保存当前状态快照。
-     * 可用于实现撤销/回滚功能。
+     * @description 存储快照
      */
     public saveSnapshot(): void {
         this.snapshots.push(deepClone(this.state));
     }
-
     /**
-     * 恢复最近一次保存的快照。
-     * 若没有快照，会打印 warning。
+     * @description 回退快照
      */
     public restoreSnapshot(): void {
         if (this.snapshots.length > 0) {
             this.state = this.snapshots.pop()!;
+
+            // 恢复快照后，仍需通知相关监听器
             this.notifyWatchers(this.state);
             this.subscribers.forEach((subscriber) => subscriber(this.state));
+
+            // 清除 derivedState 缓存
+            this.derivedStateCache.value = null;
         } else {
             console.warn('No snapshots available to restore.');
         }
