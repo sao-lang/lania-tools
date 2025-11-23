@@ -1,5 +1,5 @@
 import { AxiosRequestConfig } from 'axios';
-
+import { generateRequestKey } from ＇./helper＇;
 /**
  * 自定义取消错误类型
  * 用于在拦截器中区分是“网络错误”还是“被防抖取消”
@@ -26,22 +26,10 @@ export class DebounceThrottleManager {
     private throttleMap = new Map<string, ThrottleItem>();
 
     /**
-     * 生成唯一 Key，确保同一接口的不同参数被视为不同的请求
-     */
-    private generateKey(req: AxiosRequestConfig): string {
-        const method = req.method || 'get';
-        const url = req.url || '';
-        // 简单序列化，如果对参数顺序敏感请使用 qs.stringify
-        const params = req.params ? JSON.stringify(req.params) : '';
-        const data = req.data ? JSON.stringify(req.data) : ''; 
-        return `${method}:${url}:${params}:${data}`;
-    }
-
-    /**
      * 防抖请求
      */
     public debounceRequest(req: AxiosRequestConfig, delay = 300): Promise<AxiosRequestConfig> {
-        const key = this.generateKey(req);
+        const key = generateRequestKey(req);
 
         return new Promise((resolve, reject) => {
             // 1. 如果有旧请求在等待，直接取消它
@@ -70,7 +58,7 @@ export class DebounceThrottleManager {
      * 节流请求
      */
     public throttleRequest(req: AxiosRequestConfig, interval = 1000): Promise<AxiosRequestConfig> {
-        const key = this.generateKey(req);
+        const key = generateRequestKey(req);
         const now = Date.now();
 
         return new Promise((resolve, reject) => {
@@ -96,7 +84,7 @@ export class DebounceThrottleManager {
      * 可选：取消某个防抖/节流 (保留原有的 cancel 方法，但使用新的逻辑)
      */
     public cancelDebounce(req: AxiosRequestConfig) {
-        const key = this.generateKey(req);
+        const key = generateRequestKey(req);
         if(this.debounceMap.has(key)){
              const pending = this.debounceMap.get(key)!;
              clearTimeout(pending.timer);
@@ -107,7 +95,7 @@ export class DebounceThrottleManager {
 
     public cancelThrottle(req: AxiosRequestConfig) {
         // 节流通常只清除历史记录，不涉及 Promise 
-        const key = this.generateKey(req);
+        const key = generateRequestKey(req);
         this.throttleMap.delete(key);
         // 如果你的 throttle 实现是 trailing edge，这里可能还需要 clear 一个 timer
     }
@@ -124,3 +112,4 @@ export class DebounceThrottleManager {
         this.throttleMap.clear();
     }
 }
+
