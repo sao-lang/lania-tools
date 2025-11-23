@@ -7,11 +7,14 @@ interface CacheEntry {
 
 export class CacheManager {
     private cache: Map<string, CacheEntry> = new Map();
-
-    public getCacheKey(config: AxiosRequestConfig) {
-        return `${config.method}:${config.url}:${JSON.stringify(config.params)}:${JSON.stringify(config.data)}`;
+    public getCacheKey(req: AxiosRequestConfig): string {
+        const method = req.method || 'get';
+        const url = req.url || '';
+        // 简单序列化，如果对参数顺序敏感请使用 qs.stringify
+        const params = req.params ? JSON.stringify(req.params) : '';
+        const data = req.data ? JSON.stringify(req.data) : ''; 
+        return `${method}:${url}:${params}:${data}`;
     }
-
     public get(config: AxiosRequestConfig) {
         const key = this.getCacheKey(config);
         const entry = this.cache.get(key);
@@ -39,3 +42,4 @@ export class CacheManager {
         this.cache.clear();
     }
 }
+
