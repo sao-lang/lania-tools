@@ -32,7 +32,6 @@ interface PollingState {
     config: PollingConfig<any>;
 }
 
-
 export class PollingManager {
     // 使用 Map 存储 PollingState 对象，以便管理每个轮询的完整状态
     private pollingTasks: Map<string, PollingState> = new Map();
@@ -58,7 +57,7 @@ export class PollingManager {
         }: PollingConfig<T> = {} as PollingConfig<T>,
     ) {
         if (!key) {
-            console.error("Polling key must be provided.");
+            console.error('Polling key must be provided.');
             return;
         }
 
@@ -73,7 +72,16 @@ export class PollingManager {
             isStopped: false,
             attempts: 0,
             timeoutId: null,
-            config: { key, url, method, config, onSuccess, onError, interval, maxPollingTimes } as PollingConfig<any>,
+            config: {
+                key,
+                url,
+                method,
+                config,
+                onSuccess,
+                onError,
+                interval,
+                maxPollingTimes,
+            } as PollingConfig<any>,
         };
         this.pollingTasks.set(key, state);
 
@@ -85,8 +93,9 @@ export class PollingManager {
      * 内部方法：执行单个轮询请求和调度下一个请求
      */
     private executePoll(state: PollingState): void {
-        const { key, url, method, config, onSuccess, onError, interval, maxPollingTimes } = state.config;
-        
+        const { key, url, method, config, onSuccess, onError, interval, maxPollingTimes } =
+            state.config;
+
         // 核心退出条件：如果被外部停止，或者已达到最大轮询次数
         if (state.isStopped || state.attempts >= maxPollingTimes!) {
             // 达到最大次数或已停止，执行清理
@@ -98,7 +107,7 @@ export class PollingManager {
         const requestTask = async () => {
             // 再次检查中止状态，以防任务在排队时被 stopPolling
             if (state.isStopped) return;
-            
+
             try {
                 // 使用并发控制器来执行实际的 HTTP 请求
                 const res = await this.instance[method!](url, config);
@@ -124,7 +133,7 @@ export class PollingManager {
 
         // 将请求加入并发控制器
         // 注意：这里不需要等待 run() 结果，因为任务状态的更新是在 finally 块中完成的。
-        this.concurrencyController.run(requestTask).catch(err => {
+        this.concurrencyController.run(requestTask).catch(() => {
             // 如果并发控制器内部出现未捕获的错误，或者 task() 抛出错误，
             // 都会在这里被捕获，但 executePoll 内部的 finally 已经处理了 attempts++。
             // 这里的 catch 主要用于处理 run 方法抛出的任何其他异常（例如，如果 task 本身同步抛出）。
@@ -148,7 +157,7 @@ export class PollingManager {
             if (state.timeoutId) {
                 clearTimeout(state.timeoutId);
             }
-            
+
             // 3. 移除任务，释放内存。
             this.pollingTasks.delete(key);
 

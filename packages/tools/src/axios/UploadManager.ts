@@ -7,7 +7,7 @@ import { CHUNK_SIZE } from './const';
 
 // ⚠️ Webpack/Vite 导入 Web Worker 的推荐方式
 // 必须确保您的构建工具正确配置了 worker loader
-import Md5CalculatorWorker from './md5-calculator.worker?worker'; 
+import Md5CalculatorWorker from './md5-calculator.worker?worker';
 
 export interface UploadFileOptions {
     maxConcurrent?: number; // 字段保留，但实际使用 GlobalConcurrencyController 的限制
@@ -34,11 +34,13 @@ export class UploadManager {
      */
     async calculateFileMd5(file: File, chunkSize: number): Promise<string> {
         return new Promise((resolve, reject) => {
-            const worker = new Md5CalculatorWorker();
-
+            // 上传管理器中
+            const worker = new Worker(
+                new URL('./md5-calculator.worker.ts', import.meta.url),
+                { type: 'module' }, // 通常推荐添加 type: 'module'
+            );
             const cleanup = () => worker.terminate();
-
-            worker.onmessage = (e) => {
+            worker.onmessage = (e: any) => {
                 cleanup();
                 if (e.data.error) {
                     reject(new Error(`MD5 Worker Error: ${e.data.error}`));
@@ -47,7 +49,7 @@ export class UploadManager {
                 }
             };
 
-            worker.onerror = (e) => {
+            worker.onerror = (e: any) => {
                 cleanup();
                 reject(new Error(`MD5 Worker failed: ${e.message}`));
             };
@@ -106,21 +108,19 @@ export class UploadManager {
                     if (axios.isCancel(error)) {
                         throw new Error('Upload canceled by user signal.');
                     }
-                    
                     if (attempt < retryTimes) {
-                        console.warn(`Chunk ${chunkIndex} failed (Attempt ${attempt + 1}/${retryTimes}). Retrying in ${retryDelay}ms...`);
-                        
+                        console.warn(
+                            `Chunk ${chunkIndex} failed (Attempt ${attempt + 1}/${retryTimes}). Retrying in ${retryDelay}ms...`,
+                        );
                         await new Promise((r) => setTimeout(r, retryDelay));
-                        
                         // 递归调用下一轮上传
-                        return uploadWithRetry(attempt + 1); 
+                        return uploadWithRetry(attempt + 1);
                     }
                     // 超过最大重试次数，抛出原始错误
                     throw error;
                 }
             });
         };
-        
         await uploadWithRetry(0);
     }
 
@@ -136,16 +136,13 @@ export class UploadManager {
             onChunkProgress,
             onProgress,
         } = options;
-        
+
         const chunkSize = CHUNK_SIZE;
         const totalChunks = Math.ceil(file.size / chunkSize);
-
         // 1. 使用 Web Worker 计算文件 MD5
-        const fileMd5 = await this.calculateFileMd5(file, chunkSize); 
-        
+        const fileMd5 = await this.calculateFileMd5(file, chunkSize);
         const cancelToken = axios.CancelToken.source();
         let uploadedChunks = new Set<number>();
-
         // 2. 断点续传检查
         if (enableResume && getUploadedChunksUrl) {
             const res = await this.instance.get<{ uploaded: number[] }>(
@@ -153,9 +150,7 @@ export class UploadManager {
             );
             uploadedChunks = new Set(res.data.uploaded || []);
         }
-
         let finishedChunks = uploadedChunks.size;
-        
         // 3. 创建所有分块上传任务 (Promise 数组)
         const uploadPromises = Array.from({ length: totalChunks })
             .map((_, index) => index)
@@ -164,11 +159,9 @@ export class UploadManager {
                 const start = chunkIndex * chunkSize;
                 const end = Math.min(file.size, start + chunkSize);
                 const chunk = file.slice(start, end);
-
                 const chunkMd5 = calculateChunkMd5
                     ? await this.calculateChunkMd5(chunk)
                     : undefined;
-
                 // 提交任务，它会在 uploadChunk 内部被 GlobalConcurrencyController 调度
                 await this.uploadChunk(
                     url,
@@ -185,11 +178,9 @@ export class UploadManager {
                 finishedChunks++;
                 onProgress?.(finishedChunks, totalChunks);
             });
-            
         // 4. 统一调度和等待所有任务
         // GlobalConcurrencyController 已经限制了并发数，这里只需等待所有任务完成。
         await Promise.all(uploadPromises);
-
         // await this.instance.post(`${url}/merge`, { fileMd5, totalChunks });
         return { fileMd5, totalChunks };
     }

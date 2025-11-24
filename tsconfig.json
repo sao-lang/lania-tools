@@ -1,15 +1,20 @@
 {
-    "extends": "../../tsconfig.json",
     "compilerOptions": {
         "target": "es6",
         "module": "esnext",
         "moduleResolution": "node",
-        "declaration": true,
-        "declarationDir": "./dist/types",
-        "outDir": "dist",
         "strict": true,
         "esModuleInterop": true
     },
-    "include": ["src", "../../worker.d.ts"],
+    "include": [
+        "src/**/*",
+        "**/*.js",
+        "**/*.cjs",
+        "**/*.mjs",
+        "**/*.ts",
+        "**/*.tsx",
+        "./.eslintrc.cjs",
+        "worker.d.ts"
+    ],
     "exclude": ["node_modules", "dist"]
 }

@@ -1,4 +1,3 @@
-
 // AxiosWrapper.ts (或 index.ts)
 
 import axios, {
@@ -11,13 +10,12 @@ import axios, {
 // 假设这些 Manager 文件是存在的，并且已经使用了我们讨论过的最终版本：
 import { GlobalConcurrencyController } from './GlobalConcurrencyController';
 import { CacheManager } from './CacheManager';
-import { DebounceThrottleManager } from './DebounceThrottleManager'; 
+import { DebounceThrottleManager } from './DebounceThrottleManager';
 import { UploadManager, UploadFileOptions } from './UploadManager';
 import { PollingConfig, PollingManager } from './PollingManager';
 import { CancelTokenManager } from './CancelTokenManager';
 import { InterceptorManager } from './InterceptorManager';
-import { DEFAULT_MAX_RETRIES, DEFAULT_RETRY_DELAY } from './const'; 
-
+import { DEFAULT_MAX_RETRIES, DEFAULT_RETRY_DELAY } from './const';
 
 /**
  * 扩展的 Axios 请求配置，用于公共方法
@@ -46,7 +44,6 @@ interface AxiosWrapperInterceptors {
         onRejected?: (error: any) => any;
     };
 }
-
 
 /**
  * AxiosWrapper 的全局配置选项接口
@@ -126,7 +123,7 @@ export class AxiosWrapper {
         this.options = options || {};
         this.initManager();
         // 挂载拦截器，确保在构造函数结束前完成
-        this.interceptorManager.attachInterceptors(); 
+        this.interceptorManager.attachInterceptors();
     }
 
     /**
@@ -143,7 +140,6 @@ export class AxiosWrapper {
         this.interceptorManager = new InterceptorManager({
             instance: this.instance,
             cacheManager: this.cacheManager,
-            concurrencyController: this.concurrencyController,
             debounceThrottleManager: this.debounceThrottleManager,
             instanceOptions: {
                 ...this.options,
@@ -174,12 +170,13 @@ export class AxiosWrapper {
         if (!isAccessExpired && !isRefreshExpired) {
             return res;
         }
-        
+
         // 1. Refresh Token 过期：强制登出
         if (isRefreshExpired) {
             try {
                 onRefreshTokenExpired?.();
             } finally {
+                // eslint-disable-next-line no-unsafe-finally
                 return Promise.reject(new Error('Refresh token expired'));
             }
         }
@@ -205,10 +202,11 @@ export class AxiosWrapper {
                 this.refreshTokenPromise = (async () => {
                     const refreshToken = await getRefreshToken?.();
                     if (!refreshToken) throw new Error('Missing refresh token.');
-                    
+
                     const token = await refreshAccessToken(refreshToken);
-                    if (!token || typeof token !== 'string') throw new Error('Invalid new access token.');
-                    
+                    if (!token || typeof token !== 'string')
+                        throw new Error('Invalid new access token.');
+
                     return token;
                 })().finally(() => {
                     this.refreshTokenPromise = null; // 无论成功失败都清除单例
@@ -255,19 +253,19 @@ export class AxiosWrapper {
         const config = err.config as InternalAxiosRequestConfig & {
             __retryCount?: number;
         };
-        
+
         config.__retryCount = config.__retryCount || 0;
 
         if (config.__retryCount < (this.options.retryTimes || DEFAULT_MAX_RETRIES)) {
             config.__retryCount++;
-            
+
             // 延迟等待
             await new Promise((r) => setTimeout(r, this.options.retryDelay || DEFAULT_RETRY_DELAY));
 
             // 核心：重新将请求放入 GlobalConcurrencyController 队列
             return this.concurrencyController.run(() => this.instance(config));
         }
-        
+
         // 超过重试次数，抛出原错误
         throw err;
     }
@@ -278,7 +276,7 @@ export class AxiosWrapper {
      */
     public async request<T>(config: AxiosWrapperMethodConfig) {
         const { method, url, data, params, cancelTokenId } = config;
-        
+
         // 1. 处理取消令牌
         const cancelTokenSource = axios.CancelToken.source();
         if (config?.cancelTokenId) {
@@ -303,9 +301,9 @@ export class AxiosWrapper {
 
         return req;
     }
-    
+
     // --- 快捷方法 API ---
-    
+
     public get<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
         config.url = url ?? config.url;
         config.params = data ?? config.data;
@@ -355,7 +353,7 @@ export class AxiosWrapper {
     public clearCache() {
         this.cacheManager.clear();
     }
-    
+
     /**
      * 下载文件
      * 自动处理 Blob 流，并触发浏览器下载行为。

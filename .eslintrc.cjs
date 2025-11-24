@@ -6,18 +6,25 @@ module.exports = {
         __filename: 'readonly',
         __version: 'readonly',
         __cwd: 'readonly',
+        NodeJS: 'readonly'
     },
     env: {
         browser: true,
         node: true,
-        es2020: true,
+        es2022: true,
     },
     extends: [
         'eslint:recommended',
         'plugin:@typescript-eslint/recommended',
         'plugin:prettier/recommended',
     ],
-
+    parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        // 🚨 核心步骤：告诉解析器你的 tsconfig 文件在哪里
+        // 如果你的 tsconfig.json 在项目根目录，就这样写：
+        project: ['./tsconfig.json'],
+    },
     rules: {
         quotes: ['warn', 'single'],
         eqeqeq: ['error', 'allow-null'],

@@ -8,11 +8,14 @@ export type ConvertOptions = {
     excludeSelectors?: string[];
     /** 是否使用缓存提高性能 */
     useCache?: boolean;
-    /** 最大缓存条数，超过会删除最早的记录 */
+    /** 最大缓存条数，超过会删除最早的记录 (默认为 500) */
     maxCacheSize?: number;
 };
 
-/** 双端队列（Deque）实现，用于批量处理队列管理 */
+/**
+ * 双端队列（Deque）实现，基于数组，用于批量处理队列管理。
+ * 注意：shift/unshift 操作复杂度为 O(N)。
+ */
 class Deque<T> {
     private _queue: T[] = [];
 
@@ -23,12 +26,8 @@ class Deque<T> {
 
     /** 头部取出元素 */
     shift(): T | undefined {
+        // 使用 Array.shift()，虽然是 O(N)，但在大多数场景下代码更简洁
         return this._queue.shift();
-    }
-
-    /** 头部添加元素 */
-    unshift(val: T) {
-        this._queue.unshift(val);
     }
 
     /** 队列长度 */
@@ -38,56 +37,68 @@ class Deque<T> {
 }
 
 /**
- * 高性能字符替换工具
- * - 支持 LRU 缓存
- * - 支持正则转义
- * - 可选择是否使用缓存
+ * 高性能字符替换工具，支持真正的 LRU 缓存。
+ *
+ * @param text 待替换的文本
+ * @param dictionary 字典对象
+ * @param useCache 是否使用缓存
+ * @param cacheMap 全局 Map 缓存实例
+ * @param maxCacheSize 最大缓存条数
+ * @returns 替换后的文本
  */
-export const convertChinese = (() => {
+export const createChineseConverter = (maxCacheSize: number = 500) => {
     let pattern: RegExp;
     let dict: Record<string, string> = {};
+    // 使用 Map 作为缓存，因为它保持插入顺序
     const cache = new Map<string, string>();
-    const maxCacheSize = 500;
-
-    /** 转义正则特殊字符 */
     const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     return (text: string, dictionary: Record<string, string>, useCache = true) => {
         if (!text || !dictionary || !Object.keys(dictionary).length) return text;
 
-        // 字典变化或首次初始化
+        // 字典变化或首次初始化：重新构建正则，清空缓存
         if (dict !== dictionary) {
             dict = dictionary;
             const keys = Object.keys(dict).map(escapeRegExp);
-            pattern = new RegExp(keys.join('|'), 'g');
+            // 确保字典不为空时才创建 RegExp，防止 keys.join('|') 是空字符串
+            pattern = keys.length ? new RegExp(keys.join('|'), 'g') : /($^)/;
             cache.clear();
         }
 
-        // 缓存命中
-        if (useCache && cache.has(text)) return cache.get(text)!;
+        // 缓存命中并实现 LRU
+        if (useCache && cache.has(text)) {
+            const result = cache.get(text)!;
+            // 1. 删除旧的 key
+            cache.delete(text);
+            // 2. 重新插入 key，使其成为 Map 中“最新使用”的元素（移到尾部）
+            cache.set(text, result);
+            return result;
+        }
 
-        // 替换文本
+        // 文本替换
         const result = text.replace(pattern, (match) => dict[match] || match);
 
         // 更新缓存并维护 LRU
         if (useCache) {
+            // 如果缓存未命中，将其添加到末尾 (最新使用)
             cache.set(text, result);
+
+            // 维护最大缓存条数 (FIFO 即 LRU 的淘汰策略)
             if (cache.size > maxCacheSize) {
+                // Map 的迭代器头部即为最久未使用的 key
                 const firstKey = cache.keys().next().value;
-                firstKey && cache.delete(firstKey);
+                if (firstKey) cache.delete(firstKey);
             }
         }
 
         return result;
     };
-})();
+};
 
 /**
  * 批量处理页面文本，将符合字典的中文文本替换为对应内容
- * - 支持批量处理和 requestIdleCallback 避免阻塞
- * - 可选择是否观察 DOM 变化动态处理新增文本
  *
- * @param dictionary 字典对象，key 为原始文本，value 为替换文本
+ * @param dictionary 字典对象
  * @param targetElement 目标 DOM 元素，默认 document.body
  * @param options 配置选项
  * @returns 返回停止观察 DOM 的函数
@@ -102,12 +113,16 @@ export const convertPageChinese = (
         batchSize = 100,
         excludeSelectors = [],
         useCache = true,
+        maxCacheSize = 500, // 默认值 500
     } = options;
 
     if (!dictionary || !Object.keys(dictionary).length) return () => {};
 
+    // 1. 使用工厂函数创建转换器，传入 maxCacheSize
+    const convertChinese = createChineseConverter(maxCacheSize);
+
     /** 判断节点是否被排除 */
-    const shouldExclude = (node: Node | null) =>
+    const shouldExclude = (node: Node | null): boolean =>
         node?.nodeType === Node.ELEMENT_NODE &&
         excludeSelectors.some((sel) => (node as HTMLElement).closest(sel));
 
@@ -115,13 +130,19 @@ export const convertPageChinese = (
     const getTextNodes = (root: Node) => {
         const nodes: Node[] = [];
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            // 注意：这里检查的是 text node 的 parentNode
             acceptNode: (node) =>
                 shouldExclude(node.parentNode)
                     ? NodeFilter.FILTER_REJECT
                     : NodeFilter.FILTER_ACCEPT,
         });
         let node;
-        while ((node = walker.nextNode())) nodes.push(node);
+        while ((node = walker.nextNode())) {
+            // 忽略空白或只有换行的文本节点
+            if (node.textContent?.trim().length) {
+                nodes.push(node);
+            }
+        }
         return nodes;
     };
 
@@ -129,48 +150,62 @@ export const convertPageChinese = (
     const queue = new Deque<Node>();
     getTextNodes(targetElement).forEach((n) => queue.push(n));
 
+    // 使用 requestIdleCallback 的 Polyfill
+    const idleCallback =
+        window.requestIdleCallback ||
+        ((fn: (deadline?: { didTimeout: boolean; timeRemaining: () => number }) => void) =>
+            setTimeout(fn, 16));
+
     /** 批量处理文本节点 */
     const processBatch = () => {
         const end = Math.min(batchSize, queue.length);
         for (let i = 0; i < end; i++) {
             const node = queue.shift()!;
+            // 避免处理已经被其他操作移除的节点
+            if (!node.parentElement) continue;
+
             const oldText = node.textContent || '';
             const newText = convertChinese(oldText, dictionary, useCache);
-            if (oldText !== newText) node.textContent = newText;
+
+            if (oldText !== newText) {
+                node.textContent = newText;
+            }
         }
 
         if (queue.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/ban-types
-            const idle = window.requestIdleCallback || ((fn: Function) => setTimeout(fn, 16));
-            idle(processBatch);
+            idleCallback(processBatch);
         }
     };
-
     processBatch();
 
     // 观察 DOM 变化
     let observer: MutationObserver | null = null;
     if (observeMutations) {
         let scheduled = false;
-        const pendingNodes = new Set<Node>();
+        // 改进：收集新增的父元素，统一处理，降低同步操作开销
+        const pendingElements = new Set<Node>();
 
         /** MutationObserver 回调 */
         const handleMutations = (mutations: MutationRecord[]) => {
             for (const m of mutations) {
                 for (const n of Array.from(m.addedNodes)) {
-                    if (!shouldExclude(n)) {
-                        getTextNodes(n).forEach((node) => pendingNodes.add(node));
+                    // 仅关注元素节点，并排除黑名单节点
+                    if (n.nodeType === Node.ELEMENT_NODE && !shouldExclude(n)) {
+                        pendingElements.add(n);
                     }
                 }
             }
-            if (!scheduled) {
+            if (pendingElements.size > 0 && !scheduled) {
                 scheduled = true;
-                // eslint-disable-next-line @typescript-eslint/ban-types
-                const idle = window.requestIdleCallback || ((fn: Function) => setTimeout(fn, 50));
-                idle(() => {
+                // 延迟执行节点收集和处理
+                idleCallback(() => {
                     scheduled = false;
-                    pendingNodes.forEach((node) => queue.push(node));
-                    pendingNodes.clear();
+                    // 统一获取文本节点并加入队列
+                    pendingElements.forEach((el) => {
+                        getTextNodes(el).forEach((node) => queue.push(node));
+                    });
+                    pendingElements.clear();
+                    // 开始处理队列中的新节点
                     processBatch();
                 });
             }

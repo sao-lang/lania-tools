@@ -11,20 +11,20 @@ function stableStringify(obj: any): string {
         // 对于非对象或 null，直接使用 JSON.stringify 处理
         return JSON.stringify(obj);
     }
-    
+
     // 1. 获取所有自身的、可枚举的字符串键
     const keys = Object.keys(obj);
-    
+
     // 2. 对键进行排序，确保顺序稳定
     keys.sort();
-    
+
     // 3. 按排序后的键构建新的对象字符串
-    let parts: string[] = [];
+    const parts: string[] = [];
     for (const key of keys) {
         const value = obj[key];
         // 递归地对值进行稳定序列化
         const stringifiedValue = stableStringify(value);
-        
+
         // 键名本身必须是 JSON 字符串
         parts.push(`"${key}":${stringifiedValue}`);
     }
@@ -43,22 +43,18 @@ function stableStringify(obj: any): string {
 export function generateRequestKey(req: AxiosRequestConfig): string {
     // 1. 获取请求方法，默认 'get'
     const method = req.method ? req.method.toLowerCase() : 'get';
-    
+
     // 2. 获取请求 URL
     const url = req.url || '';
 
     // 3. 稳定序列化 URL 参数
     // 如果 req.params 是对象，使用 stableStringify；否则使用空字符串
-    const params = req.params 
-        ? stableStringify(req.params) 
-        : '';
-        
+    const params = req.params ? stableStringify(req.params) : '';
+
     // 4. 稳定序列化请求体数据
     // 如果 req.data 是对象，使用 stableStringify；否则使用空字符串
-    const data = req.data 
-        ? stableStringify(req.data) 
-        : ''; 
-        
+    const data = req.data ? stableStringify(req.data) : '';
+
     // 5. 组合成唯一的 Key： method:url:params:data
     return `${method}:${url}:${params}:${data}`;
 }
