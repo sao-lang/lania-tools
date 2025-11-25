@@ -9,7 +9,8 @@ type SuperCarouselOptions = {
     itemSelector: string;
 
     // --- 通用配置 ---
-    /** 动画速度/持续时间。在 slide 模式下是过渡时间(ms)，在 marquee 模式下是每帧移动的像素值 */
+    /** 动画速度/持续时间。在 slide 模式下是 CSS 过渡时间(ms)。
+     * 在 marquee 模式下是滚动速度 (px/s, 像素/秒) */
     speed?: number;
     /** 自动播放间隔 (毫秒) */
     autoplayInterval?: number;
@@ -43,9 +44,15 @@ export class Carousel {
     private lastTimestamp: number = 0;
     private currentOffset: number = 0; // 当前滚动偏移量 (像素)
 
+    // --- 预绑定方法引用，用于事件监听器的性能优化 ---
+    private boundHandleResize: () => void;
+    private boundStart: () => void;
+    private boundStop: () => void;
+    private marqueeAnimateBound: (timestamp: number) => void;
+
     // 默认配置
     private static defaultOptions = {
-        speed: 300, // slide 默认 300ms 过渡，marquee 默认每帧 5px 移动
+        speed: 300, // slide 默认 300ms 过渡，marquee 默认 300px/s 速度
         autoplayInterval: 3000,
         pauseOnHover: true,
     };
@@ -54,7 +61,13 @@ export class Carousel {
         // 1. 合并配置
         this.options = { ...Carousel.defaultOptions, ...options } as any;
 
-        // 2. 获取 DOM 元素
+        // 2. 预绑定方法
+        this.boundHandleResize = this.handleResize.bind(this);
+        this.boundStart = this.start.bind(this);
+        this.boundStop = this.stop.bind(this);
+        this.marqueeAnimateBound = this.marqueeAnimate.bind(this);
+
+        // 3. 获取 DOM 元素
         const container = document.querySelector(this.options.containerSelector);
         if (!container) {
             throw new Error(
@@ -72,7 +85,7 @@ export class Carousel {
             return;
         }
 
-        // 3. 根据模式初始化
+        // 4. 根据模式初始化
         if (this.options.mode === 'slide') {
             this.initSlideMode();
         } else if (this.options.mode === 'marquee') {
@@ -83,15 +96,11 @@ export class Carousel {
             );
         }
 
-        // 4. 设置通用事件监听
+        // 5. 设置通用事件监听
         this.setupEventListeners();
 
-        // 5. 启动自动播放/滚动
-        if (this.options.mode === 'slide') {
-            this.startAutoplay();
-        } else if (this.options.mode === 'marquee') {
-            this.startMarquee();
-        }
+        // 6. 启动自动播放/滚动
+        this.start();
     }
 
     // --- 模式初始化函数 ---
@@ -102,7 +111,7 @@ export class Carousel {
             this.paginationContainer = document.querySelector(this.options.paginationSelector);
         }
 
-        // 2. 克隆头尾项目实现无限循环
+        // 2. 克隆头尾项目实现无限循环 (A B C -> C A B C A)
         const lastItem = this.items[this.originalItemCount - 1].cloneNode(true) as HTMLElement;
         const firstItem = this.items[0].cloneNode(true) as HTMLElement;
         lastItem.setAttribute('data-cloned', 'true');
@@ -137,9 +146,9 @@ export class Carousel {
         // 1. 必须设置容器样式以确保项目水平排列和溢出隐藏
         this.container.style.overflow = 'hidden';
         this.container.style.whiteSpace = 'nowrap';
-        this.container.style.display = 'block'; // 覆盖 Slide 模式的 flex
+        this.container.style.display = 'block';
 
-        // 2. 克隆足够多的项目实现“无限”循环
+        // 2. 克隆足够多的项目实现“无限”循环 (A B C -> A B C A B C)
         // 克隆所有原始项目
         for (let i = 0; i < this.originalItemCount; i++) {
             const originalItem = this.items[i];
@@ -169,10 +178,10 @@ export class Carousel {
     /** 统一的宽度计算逻辑 */
     private calculateItemWidth(): void {
         const wrapper = this.container.parentElement;
-        if (wrapper) {
+        if (this.options.mode === 'slide' && wrapper) {
             // 在 Slide 模式下，itemWidth 是视口宽度
             this.itemWidth = wrapper.getBoundingClientRect().width;
-        } else if (this.originalItemCount > 0) {
+        } else if (this.options.mode === 'marquee' && this.originalItemCount > 0) {
             // 在 Marquee 模式下，itemWidth 是单个项目的实际宽度
             this.itemWidth = this.items[0].getBoundingClientRect().width;
         }
@@ -181,21 +190,18 @@ export class Carousel {
     /** 销毁实例，清理事件监听器和 DOM 结构 */
     public destroy(): void {
         this.stop();
-        window.removeEventListener('resize', this.handleResize.bind(this));
 
+        // 移除预绑定事件监听
+        window.removeEventListener('resize', this.boundHandleResize);
         if (this.options.pauseOnHover) {
-            this.container.removeEventListener('mouseenter', this.stop.bind(this));
-            this.container.removeEventListener('mouseleave', this.start.bind(this));
+            this.container.removeEventListener('mouseenter', this.boundStop);
+            this.container.removeEventListener('mouseleave', this.boundStart);
         }
 
         // 移除克隆节点
         this.items.forEach((item) => {
             if (item.getAttribute('data-cloned') === 'true') {
-                try {
-                    this.container.removeChild(item);
-                } catch (e) {
-                    /* Already removed or not found */
-                }
+                item.remove();
             }
         });
 
@@ -224,11 +230,11 @@ export class Carousel {
     private setupEventListeners(): void {
         // 鼠标悬停暂停/启动
         if (this.options.pauseOnHover) {
-            this.container.addEventListener('mouseenter', this.stop.bind(this));
-            this.container.addEventListener('mouseleave', this.start.bind(this));
+            this.container.addEventListener('mouseenter', this.boundStop);
+            this.container.addEventListener('mouseleave', this.boundStart);
         }
         // 响应式处理
-        window.addEventListener('resize', this.handleResize.bind(this));
+        window.addEventListener('resize', this.boundHandleResize);
     }
 
     private handleResize(): void {
@@ -243,8 +249,6 @@ export class Carousel {
         if (this.options.mode === 'slide') {
             // Slide 模式需要无过渡地跳到当前位置以修正偏移
             this.jumpTo(this.currentIndex);
-        } else if (this.options.mode === 'marquee') {
-            // Marquee 模式只需要确保 itemWidth 正确即可，不需要重定位
         }
 
         // 如果之前在运行，则重新启动
@@ -273,20 +277,19 @@ export class Carousel {
 
     // --- Marquee 模式方法 ---
 
-    private marqueeAnimate = (timestamp: number): void => {
+    private marqueeAnimate(timestamp: number): void {
         if (!this.lastTimestamp) {
             this.lastTimestamp = timestamp;
         }
 
         const elapsed = timestamp - this.lastTimestamp;
-        // Marquee 模式下 options.speed 是每帧移动的像素值
-        const speedPerMs = this.options.speed / 16;
+        // options.speed 视为 px/s (像素/秒)
+        const speedPerMs = this.options.speed / 1000;
 
         // 1. 计算新的偏移量
         this.currentOffset += speedPerMs * elapsed;
 
         // 2. 处理“无限”循环
-        // 循环点：当滚动偏移量超过原始项目集合的总宽度时，重置到 0
         const originalContentWidth = this.itemWidth * this.originalItemCount;
 
         if (this.currentOffset >= originalContentWidth) {
@@ -298,12 +301,14 @@ export class Carousel {
         this.container.style.transform = `translateX(-${this.currentOffset}px)`;
 
         this.lastTimestamp = timestamp;
-        this.animationFrameId = requestAnimationFrame(this.marqueeAnimate);
-    };
+        this.animationFrameId = requestAnimationFrame(this.marqueeAnimateBound);
+    }
 
     public startMarquee(): void {
         if (this.animationFrameId === null) {
-            this.animationFrameId = requestAnimationFrame(this.marqueeAnimate);
+            // 重置 lastTimestamp 以避免在长时间暂停后发生巨大跳跃
+            this.lastTimestamp = 0;
+            this.animationFrameId = requestAnimationFrame(this.marqueeAnimateBound);
         }
     }
 
@@ -351,7 +356,7 @@ export class Carousel {
         if (this.isAnimating && useTransition) return;
         this.isAnimating = true;
 
-        // 目标 DOM 索引：原始索引 + 1 (因为前面有一个克隆项)
+        // 目标 DOM 索引：原始索引 + 1 (因为前面有一个克隆项)。
         const targetDomIndex = index + 1;
         // 偏移量
         const offset = -targetDomIndex * this.itemWidth;
@@ -363,25 +368,34 @@ export class Carousel {
 
         this.container.style.transform = `translateX(${offset}px)`;
 
-        // 在过渡结束后执行逻辑
-        setTimeout(
-            () => {
-                // 只有在完成动画后才更新 currentIndex，防止点击过快
+        // 使用 transitionend 事件监听来取代 setTimeout，实现更健壮的无缝循环
+        if (useTransition) {
+            const handleTransitionEnd = () => {
+                this.container.removeEventListener('transitionend', handleTransitionEnd);
+
                 this.currentIndex = index;
                 this.updatePagination();
                 this.isAnimating = false;
 
-                // 处理无限循环：如果到达了克隆项，立即无过渡地跳到对应原始项
+                // 处理无限循环
                 if (index === -1) {
-                    // 移到了最前面 (最末尾的克隆项)
+                    // 移到了最前面 (最末尾的克隆项)，跳到最后一个原始项
                     this.jumpTo(this.originalItemCount - 1);
                 } else if (index === this.originalItemCount) {
-                    // 移到了最后面 (最开头的克隆项)
+                    // 移到了最后面 (最开头的克隆项)，跳到第一个原始项
                     this.jumpTo(0);
                 }
-            },
-            useTransition ? this.options.speed : 0,
-        );
+            };
+
+            // 注意：因为 transitionend 可能会被多次触发，这里使用 once: true 或手动移除。
+            // 采用手动移除，因为它在组件销毁时更易控制。
+            this.container.addEventListener('transitionend', handleTransitionEnd);
+        } else {
+            // 无过渡模式 (初始化/jumpTo)
+            this.currentIndex = index;
+            this.updatePagination();
+            this.isAnimating = false;
+        }
     }
 
     /** 无过渡跳转（用于处理无限循环的边界和响应式）*/
@@ -405,9 +419,10 @@ export class Carousel {
 
     /** 导航到下一张 (Slide 模式专用) */
     public nextSlide(): void {
-        if (this.options.mode !== 'slide') return;
+        if (this.options.mode !== 'slide' || this.isAnimating) return;
+
         let newIndex = this.currentIndex + 1;
-        // 目标是下一个原始项目，或者如果是最后一个，目标是第一个克隆项 (DOM 索引 N+1)
+        // 如果是最后一个原始项目，目标是第一个克隆项 (索引 N)
         if (newIndex > this.originalItemCount - 1) {
             newIndex = this.originalItemCount;
         }
@@ -416,9 +431,10 @@ export class Carousel {
 
     /** 导航到上一张 (Slide 模式专用) */
     public prevSlide(): void {
-        if (this.options.mode !== 'slide') return;
+        if (this.options.mode !== 'slide' || this.isAnimating) return;
+
         let newIndex = this.currentIndex - 1;
-        // 目标是前一个原始项目，或者如果是第一个，目标是最后一个克隆项 (DOM 索引 0)
+        // 如果是第一个原始项目，目标是最后一个克隆项 (索引 -1)
         if (newIndex < 0) {
             newIndex = -1;
         }
@@ -426,10 +442,12 @@ export class Carousel {
     }
 
     public startAutoplay(): void {
-        if (this.options.mode !== 'slide') return;
-        this.stopAutoplay();
+        if (this.options.mode !== 'slide' || this.autoPlayTimer !== null) return;
+
         this.autoPlayTimer = window.setInterval(() => {
-            this.nextSlide();
+            if (!this.isAnimating) {
+                this.nextSlide();
+            }
         }, this.options.autoplayInterval);
     }
 
