@@ -14,7 +14,7 @@ export class GlobalConcurrencyController {
     private maxConcurrent: number;
     private activeCount = 0;
     // 队列存储 QueuedTask 结构，用于处理 resolve/reject
-    private queue: QueuedTask<any>[] = []; 
+    private queue: QueuedTask<any>[] = [];
 
     /**
      * @param maxConcurrent 最大并发数。如果传入 0 或负数，则视为 Infinity (无限)。
@@ -31,7 +31,6 @@ export class GlobalConcurrencyController {
         // 确保队列中有任务并且当前活动任务数未超过限制（以防万一）
         if (this.queue.length > 0 && this.activeCount < this.maxConcurrent) {
             const nextTask = this.queue.shift();
-
             // 如果成功取出任务，立即开始执行
             if (nextTask) {
                 // 启动任务，但不需要等待它的结果。
@@ -46,20 +45,19 @@ export class GlobalConcurrencyController {
      */
     private executeTask<T>(queuedTask: QueuedTask<T>): void {
         // 增加活跃任务计数
-        this.activeCount++; 
-
+        this.activeCount++;
         // 执行任务并处理其结果
-        queuedTask.task()
-            .then(result => {
+        queuedTask
+            .task()
+            .then((result) => {
                 queuedTask.resolve(result); // 成功时通知等待的 Promise
             })
-            .catch(error => {
-                queuedTask.reject(error);   // 失败时通知等待的 Promise
+            .catch((error) => {
+                queuedTask.reject(error); // 失败时通知等待的 Promise
             })
             .finally(() => {
                 // 任务完成，减少活跃任务计数
-                this.activeCount--; 
-                
+                this.activeCount--;
                 // 尝试启动队列中的下一个任务
                 this.scheduleNext();
             });
@@ -85,12 +83,11 @@ export class GlobalConcurrencyController {
         // 2. 如果没有空闲槽位，将任务排队等待。
         return new Promise<T>((resolve, reject) => {
             this.queue.push({ task, resolve, reject });
-            
-            // 额外调用 scheduleNext(): 
+            // 额外调用 scheduleNext():
             // 如果 maxConcurrent 恰好为 0（虽然构造函数会将其转为 Infinity），
             // 或者 activeCount 刚刚减少，这个调用可以确保任务在 activeCount 恢复后立即开始。
             // 尤其在任务从队列中被启动，但 activeCount 还没来得及增加时，它可以防止死锁。
-            this.scheduleNext(); 
+            this.scheduleNext();
         });
     }
 }
