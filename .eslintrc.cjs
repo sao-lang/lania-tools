@@ -6,7 +6,7 @@ module.exports = {
         __filename: 'readonly',
         __version: 'readonly',
         __cwd: 'readonly',
-        NodeJS: 'readonly'
+        NodeJS: 'readonly',
     },
     env: {
         browser: true,
@@ -28,9 +28,9 @@ module.exports = {
     rules: {
         quotes: ['warn', 'single'],
         eqeqeq: ['error', 'allow-null'],
+        'no-undef': 'off',
         'no-this-before-super': 'warn',
         'no-dupe-keys': 'error',
-        'no-undef': 'error',
         'no-with': 'error',
         '@typescript-eslint/ban-ts-ignore': 'off',
         '@typescript-eslint/explicit-function-return-type': 'off',

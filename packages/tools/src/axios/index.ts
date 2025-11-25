@@ -86,11 +86,6 @@ export interface WrapperOptions {
 }
 
 /**
- * 创建实例时的完整配置对象
- */
-interface AxiosWrapperCreateOptions extends CreateAxiosDefaults, WrapperOptions {}
-
-/**
  * **AxiosWrapper 核心类**
  */
 export class AxiosWrapper {
@@ -275,7 +270,7 @@ export class AxiosWrapper {
      * 统一处理：CancelToken 注入、并发控制队列
      */
     public async request<T>(config: AxiosWrapperMethodConfig) {
-        const { method, url, data, params, cancelTokenId } = config;
+        const { cancelTokenId } = config;
 
         // 1. 处理取消令牌
         const cancelTokenSource = axios.CancelToken.source();
@@ -287,45 +282,54 @@ export class AxiosWrapper {
         // 2. 放入并发控制器执行
         const req = await this.concurrencyController
             .run(() => {
-                // 严格区分 GET/DELETE 和 POST/PUT 的参数签名
-                if (method === 'get' || method === 'delete') {
-                    return this.instance[method]<T>(url!, { ...(config ?? {}), params });
-                } else {
-                    return this.instance[method as 'post' | 'put']<T>(url!, data, config);
-                }
+                return this.instance(config);
             })
             .finally(() => {
                 // 3. 请求完成后清理取消令牌
                 if (cancelTokenId) this.cancelTokenManager.delete(cancelTokenId);
             });
 
-        return req;
+        return req as AxiosResponse<T>;
     }
 
     // --- 快捷方法 API ---
 
     public get<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
-        config.url = url ?? config.url;
-        config.params = data ?? config.data;
-        return this.request<T>({ ...config, method: 'get' });
+        return this.request<T>({
+            ...config,
+            method: 'get',
+            url: url ?? config.url,
+            params: data ?? config.data,
+        });
     }
 
     public post<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
-        config.url = url ?? config.url;
-        config.data = data ?? config.data;
-        return this.request<T>({ ...config, method: 'post' });
+        return this.request<T>({
+            ...config,
+            method: 'post',
+            url: url ?? config.url,
+            data: data ?? config.data,
+        });
     }
 
     public put<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
         config.url = url ?? config.url;
         config.data = data ?? config.data;
-        return this.request<T>({ ...config, method: 'put' });
+        return this.request<T>({
+            ...config,
+            method: 'put',
+            url: url ?? config.url,
+            data: data ?? config.data,
+        });
     }
 
     public delete<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
-        config.url = url ?? config.url;
-        config.params = data ?? config.data;
-        return this.request<T>({ ...config, method: 'delete' });
+        return this.request<T>({
+            ...config,
+            method: 'delete',
+            url: url ?? config.url,
+            data: data ?? config.data,
+        });
     }
 
     // --- Manager API ---
@@ -420,17 +424,17 @@ export class AxiosWrapper {
  */
 export class AxiosWrapperFactory {
     private static instances: Map<string, AxiosWrapper> = new Map();
-
     /**
      * 创建或获取已存在的 AxiosWrapper 实例
      */
     public static create(
         name: string,
-        config?: AxiosWrapperCreateOptions & { maxConcurrent?: number },
+        config?: CreateAxiosDefaults,
+        options?: WrapperOptions & { maxConcurrent?: number },
     ) {
         if (!this.instances.has(name)) {
             // 注意：将 config 传递两次，第一次是 AxiosDefaults，第二次是 WrapperOptions
-            const instance = new AxiosWrapper(config, config);
+            const instance = new AxiosWrapper(config, options);
             this.instances.set(name, instance);
         }
         return this.instances.get(name)!;
