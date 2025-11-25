@@ -357,9 +357,16 @@ export class Draggable {
 
     /** 应用吸附到网格 */
     private applySnap(value: number, grid: number): number {
-        // 使用 snapThreshold 逻辑 (可选，这里简化为纯吸附)
         const snappedValue = Math.round(value / grid) * grid;
-        return snappedValue;
+        const distanceToSnap = Math.abs(value - snappedValue);
+        
+        // 只有当当前位置距离最近的吸附点小于阈值时才吸附
+        if (distanceToSnap <= this.snapThreshold) {
+            return snappedValue;
+        }
+        
+        // 否则，返回原始值 (不吸附)
+        return value;
     }
 
     /** 销毁实例，解绑事件 */
@@ -372,3 +379,4 @@ export class Draggable {
 }
 
 export default Draggable;
+
