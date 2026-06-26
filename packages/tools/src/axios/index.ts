@@ -126,7 +126,7 @@ export class AxiosWrapper {
      */
     private initManager() {
         this.concurrencyController = new GlobalConcurrencyController(
-            this.options.maxConcurrent || Infinity,
+            this.options.maxConcurrent,
         );
         this.uploadManager = new UploadManager(this.instance, this.concurrencyController);
         this.pollingManager = new PollingManager(this.instance, this.concurrencyController);

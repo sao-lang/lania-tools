@@ -1,3 +1,5 @@
+import { MAX_CONCURRENT_REQUESTS } from './const';
+
 /**
  * 结构体：表示一个等待中的任务。
  */
@@ -17,11 +19,11 @@ export class GlobalConcurrencyController {
     private queue: QueuedTask<any>[] = [];
 
     /**
-     * @param maxConcurrent 最大并发数。如果传入 0 或负数，则视为 Infinity (无限)。
+     * @param maxConcurrent 最大并发数。如果传入 0 或负数，则默认使用 MAX_CONCURRENT_REQUESTS。
      */
-    constructor(maxConcurrent: number) {
+    constructor(maxConcurrent?: number) {
         // 确保 maxConcurrent 是一个正数，否则设置为 Infinity
-        this.maxConcurrent = maxConcurrent > 0 ? maxConcurrent : Infinity;
+        this.maxConcurrent = typeof maxConcurrent !== 'number' || maxConcurrent <= 0 ? MAX_CONCURRENT_REQUESTS : maxConcurrent;
     }
 
     /**
@@ -84,7 +86,7 @@ export class GlobalConcurrencyController {
         return new Promise<T>((resolve, reject) => {
             this.queue.push({ task, resolve, reject });
             // 额外调用 scheduleNext():
-            // 如果 maxConcurrent 恰好为 0（虽然构造函数会将其转为 Infinity），
+            // 如果 maxConcurrent 恰好为 0（虽然构造函数会将其转为 MAX_CONCURRENT_REQUESTS）
             // 或者 activeCount 刚刚减少，这个调用可以确保任务在 activeCount 恢复后立即开始。
             // 尤其在任务从队列中被启动，但 activeCount 还没来得及增加时，它可以防止死锁。
             this.scheduleNext();

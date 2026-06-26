@@ -22,7 +22,8 @@ module.exports = {
         ecmaVersion: 'latest',
         sourceType: 'module',
         // 🚨 核心步骤：告诉解析器你的 tsconfig 文件在哪里
-        // 如果你的 tsconfig.json 在项目根目录，就这样写：
+        // 这里需要告诉解析器 tsconfig 的根目录，否则它会以工作区根目录解析
+        tsconfigRootDir: __dirname,
         project: ['./tsconfig.json'],
     },
     rules: {

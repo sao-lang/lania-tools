@@ -44,6 +44,7 @@
         "estree-walker": "^3.0.3",
         "gulp": "^4.0.2",
         "husky": "^8.0.3",
+        "jsdom": "^29.1.1",
         "lint-staged": "^13.2.3",
         "magic-string": "^0.30.21",
         "minimatch": "^10.1.1",

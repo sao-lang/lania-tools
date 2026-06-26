@@ -114,34 +114,34 @@ AxiosWrapper.get('/api/users', { page: 1 })
 
 ### 1. GlobalConcurrencyController — 全局并发控制
 
-**核心问题：** 浏览器对同一域名的并发连接数有限制（HTTP/1.1 为 6 个），但前端可能同时发起 20+ 个请求。如果大量请求同时发出，会导致后续请求排队等待 TCP 连接，用户体验差。
+**核心问题：** 规定同时进行的请求数为 5，但前端可能同时发起 20+ 个请求。如果大量请求同时发出，会导致后续请求排队等待 TCP 连接，用户体验差。
 
 **解决方案：** 用一个队列控制同时进行的请求数，超出限制的请求排队等待。
 
-```
+```plaintext
 ┌─────────────────────────────────────────────────────────┐
 │              GlobalConcurrencyController                │
 │                                                         │
-│  maxConcurrent = 6                                      │
-│  activeCount   = 4    (当前正在执行的请求数)              │
+│  maxConcurrent = 5                                      │
+│  activeCount   = 4    (当前正在执行的请求数)               │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐    │
-│  │  queue: [task7, task8, task9, ...]               │    │
-│  │         等待中的请求                               │    │
+│  │  queue: [task7, task8, task9, ...]              │    │
+│  │         等待中的请求                              │    │
 │  └─────────────────────────────────────────────────┘    │
 │                                                         │
-│  run(task) 流程:                                        │
+│  run(task) 流程:                                         │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │  if (activeCount < maxConcurrent)                │   │
-│  │    → activeCount++ → 立即执行 task()             │   │
+│  │    → activeCount++ → 立即执行 task()              │   │
 │  │    → finally: activeCount-- → scheduleNext()     │   │
 │  │  else                                            │   │
-│  │    → 将 {task, resolve, reject} 推入 queue       │   │
-│  │    → 返回 Promise（resolve/reject 由队列消费）    │   │
+│  │    → 将 {task, resolve, reject} 推入 queue        │   │
+│  │    → 返回 Promise（resolve/reject 由队列消费）      │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                         │
 │  scheduleNext():                                        │
-│    queue.shift() → 取出队首任务 → executeTask()         │
+│    queue.shift() → 取出队首任务 → executeTask()           │
 └─────────────────────────────────────────────────────────┘
 ```
 
