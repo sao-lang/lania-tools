@@ -29,8 +29,7 @@ export class WebSocketClient {
     private heartbeatInterval: number;
     private maxReconnectAttempts: number;
     private reconnectAttempts: number = 0;
-    // eslint-disable-next-line no-undef
-    private heartbeatTimer: NodeJS.Timeout | null = null;
+    private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
     private onOpen: WebSocketEventCallback = () => {};
     private onClose: WebSocketEventCallback = () => {};

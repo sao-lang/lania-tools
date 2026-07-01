@@ -15,8 +15,7 @@ export const debounce = <T extends Fn>(
     wait?: number,
     immediate?: boolean,
 ): FnReturnType<T> & { cancel: () => void } => {
-    // eslint-disable-next-line no-undef
-    let timeout: NodeJS.Timeout | null;
+    let timeout: ReturnType<typeof setTimeout> | null;
     let result: ReturnType<T>;
     function debounced(this: unknown, ...args: FnArgsType<T>) {
         if (timeout) {
@@ -58,8 +57,7 @@ export const throttle = <T extends Fn>(
     wait = 1000,
     options?: ThrottleOptions,
 ): FnReturnType<T> & { cancel: () => void } => {
-    // eslint-disable-next-line no-undef
-    let timeout: NodeJS.Timeout | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     let previous = 0;
     let result: ReturnType<T>;
     if (!options) {

@@ -125,9 +125,7 @@ export class AxiosWrapper {
      * 初始化内部各个 Manager 模块
      */
     private initManager() {
-        this.concurrencyController = new GlobalConcurrencyController(
-            this.options.maxConcurrent,
-        );
+        this.concurrencyController = new GlobalConcurrencyController(this.options.maxConcurrent);
         this.uploadManager = new UploadManager(this.instance, this.concurrencyController);
         this.pollingManager = new PollingManager(this.instance, this.concurrencyController);
 
@@ -273,8 +271,8 @@ export class AxiosWrapper {
         const { cancelTokenId } = config;
 
         // 1. 处理取消令牌
-        const cancelTokenSource = axios.CancelToken.source();
         if (config?.cancelTokenId) {
+            const cancelTokenSource = axios.CancelToken.source();
             config.cancelToken = cancelTokenSource.token;
             this.cancelTokenManager.set(config.cancelTokenId, cancelTokenSource);
         }
@@ -440,3 +438,5 @@ export class AxiosWrapperFactory {
         return this.instances.get(name)!;
     }
 }
+
+export { DebounceThrottleCancelError } from './DebounceThrottleManager';

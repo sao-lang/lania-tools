@@ -27,7 +27,7 @@ interface PollingState {
     // 当前已尝试的轮询次数
     attempts: number;
     // 存储 setTimeout 的 ID，用于取消
-    timeoutId: NodeJS.Timeout | null;
+    timeoutId: ReturnType<typeof setTimeout> | null;
     // 任务执行所需的所有配置
     config: PollingConfig<any>;
 }
@@ -133,14 +133,7 @@ export class PollingManager {
 
         // 将请求加入并发控制器
         // 注意：这里不需要等待 run() 结果，因为任务状态的更新是在 finally 块中完成的。
-        this.concurrencyController.run(requestTask).catch(() => {
-            // 如果并发控制器内部出现未捕获的错误，或者 task() 抛出错误，
-            // 都会在这里被捕获，但 executePoll 内部的 finally 已经处理了 attempts++。
-            // 这里的 catch 主要用于处理 run 方法抛出的任何其他异常（例如，如果 task 本身同步抛出）。
-            // 在我们的设计中，requestTask 的 try/catch 已经覆盖了 HTTP 错误。
-            // 因此这个 catch 可以忽略，或者用于额外的日志记录。
-            // 为了简洁和防止重复处理，我们依赖 requestTask 内部的 finally。
-        });
+        this.concurrencyController.run(requestTask);
     }
 
     /**
@@ -161,7 +154,7 @@ export class PollingManager {
             // 3. 移除任务，释放内存。
             this.pollingTasks.delete(key);
 
-            console.log(`Polling task '${key}' has been stopped.`);
+            // console.log(`Polling task '${key}' has been stopped.`);
         }
     }
 }

@@ -5,10 +5,6 @@ import SparkMD5 from 'spark-md5'; // 用于 calculateChunkMd5
 import { GlobalConcurrencyController } from './GlobalConcurrencyController';
 import { CHUNK_SIZE } from './const';
 
-// ⚠️ Webpack/Vite 导入 Web Worker 的推荐方式
-// 必须确保您的构建工具正确配置了 worker loader
-import Md5CalculatorWorker from './md5-calculator.worker?worker';
-
 export interface UploadFileOptions {
     maxConcurrent?: number; // 字段保留，但实际使用 GlobalConcurrencyController 的限制
     enableResume?: boolean;

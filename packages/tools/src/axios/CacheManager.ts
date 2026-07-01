@@ -18,10 +18,10 @@ export class CacheManager {
         return null;
     }
 
-    public set(config: AxiosRequestConfig, data: AxiosResponse<any>, ttl?: number) {
+    public set(config: AxiosRequestConfig, data: any, ttl?: number) {
         const key = generateRequestKey(config);
         this.cache.set(key, {
-            data,
+            data: data && typeof (data as any).data !== 'undefined' ? (data as any).data : data,
             expireAt: ttl ? Date.now() + ttl : undefined,
         });
     }

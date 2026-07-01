@@ -35,6 +35,7 @@
         "@types/spark-md5": "^3.0.5",
         "@typescript-eslint/eslint-plugin": "^6.3.0",
         "@typescript-eslint/parser": "^6.3.0",
+        "@vitest/coverage-v8": "0.33.0",
         "commitizen": "^4.3.0",
         "cz-customizable": "^7.0.0",
         "cz-git": "^1.12.0",

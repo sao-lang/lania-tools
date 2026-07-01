@@ -25,8 +25,7 @@ export class SSEClient {
     private eventSource: EventSource | null = null; // 原生 EventSource 对象
     private url: string; // SSE URL
     private reconnectInterval: number; // 重连间隔
-    // eslint-disable-next-line no-undef
-    private reconnectTimer: NodeJS.Timeout | null = null; // 重连定时器
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null; // 重连定时器
 
     private onMessage: SSEEventCallback = () => {}; // 消息回调
     private onError: SSEErrorCallback = () => {}; // 错误回调

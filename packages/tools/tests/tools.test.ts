@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { debounce, throttle, deepClone, isDeepEqual } from '../src/tools';
+import { debounce, throttle, deepClone, isDeepEqual, copy } from '../src/tools';
 
 describe('debounce', () => {
     beforeEach(() => {
@@ -343,5 +343,81 @@ describe('isDeepEqual', () => {
         const map3 = new Map([['key', new Set([1, 3])]]);
         expect(isDeepEqual(map1, map2)).toBe(true);
         expect(isDeepEqual(map1, map3)).toBe(false);
+    });
+});
+
+describe('copy', () => {
+    const originalClipboard = (globalThis as any).navigator?.clipboard;
+    const originalFetch = (globalThis as any).fetch;
+    const originalClipboardItem = (globalThis as any).ClipboardItem;
+
+    afterEach(() => {
+        if (originalClipboard !== undefined) {
+            Object.defineProperty(globalThis.navigator, 'clipboard', {
+                value: originalClipboard,
+                configurable: true,
+                writable: true,
+            });
+        } else {
+            delete (globalThis.navigator as any).clipboard;
+        }
+
+        if (originalFetch !== undefined) {
+            globalThis.fetch = originalFetch;
+        } else {
+            delete (globalThis as any).fetch;
+        }
+
+        if (originalClipboardItem !== undefined) {
+            (globalThis as any).ClipboardItem = originalClipboardItem;
+        } else {
+            delete (globalThis as any).ClipboardItem;
+        }
+
+        vi.restoreAllMocks();
+    });
+
+    it('should copy text using navigator.clipboard.writeText', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(globalThis.navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        await copy({ text: 'hello' });
+        expect(writeText).toHaveBeenCalledWith('hello');
+    });
+
+    it('should copy text using fallback when clipboard is unavailable', async () => {
+        const execCommand = vi.fn(() => true);
+        (document as any).execCommand = execCommand;
+        delete (globalThis.navigator as any).clipboard;
+
+        await copy({ text: 'fallback' });
+        expect(execCommand).toHaveBeenCalledWith('copy');
+    });
+
+    it('should throw when neither text nor imageUrl provided', async () => {
+        await expect(copy({} as any)).rejects.toThrow('Either text or imageUrl must be provided');
+    });
+
+    it('should copy image when ClipboardItem is available', async () => {
+        const write = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(globalThis.navigator, 'clipboard', {
+            value: { write },
+            configurable: true,
+        });
+
+        (globalThis as any).ClipboardItem = class {
+            constructor(public items: any) {}
+        };
+
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            blob: vi.fn().mockResolvedValue(new Blob(['data'], { type: 'image/png' })),
+        } as any);
+
+        await copy({ imageUrl: 'http://example.com/image.png' });
+        expect(write).toHaveBeenCalled();
+        expect((globalThis.fetch as any)).toHaveBeenCalledWith('http://example.com/image.png');
     });
 });
