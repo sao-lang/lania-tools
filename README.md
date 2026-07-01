@@ -157,11 +157,3 @@ pnpm release
 # 提交（规范化）
 pnpm commit
 ```
-
-## 与 pro-components 的关系
-
-`lania-tools` 是底层工具库，`pro-components` 是上层组件库：
-
-- `pro-components/ProFormN/utils/reactive.ts` 的响应式系统是一个独立的内部实现，不依赖 lania-tools
-- `pro-components/ProTableN` 的 Axios 请求层可以直接使用 `AxiosWrapper` 替代
-- `pro-components` 中的通用工具函数（防抖、深拷贝等）可迁移到 `lania-tools` 统一维护
