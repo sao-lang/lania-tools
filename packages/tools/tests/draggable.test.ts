@@ -255,4 +255,291 @@ describe('Draggable', () => {
         document.dispatchEvent(new TouchEvent('touchend', {}));
         expect(onDragEnd).toHaveBeenCalled();
     });
+
+    it('should apply boundary limits during touch', () => {
+        const draggable = new Draggable(element, {
+            enableTouch: true,
+            boundary: { minX: 0, maxX: 100, minY: 0, maxY: 100 },
+        });
+        draggable.bindEvents();
+        const touch1 = new Touch({
+            identifier: 1,
+            target: element,
+            clientX: 0,
+            clientY: 0,
+        });
+        const touch2 = new Touch({
+            identifier: 1,
+            target: element,
+            clientX: 200,
+            clientY: 200,
+        });
+        element.dispatchEvent(new TouchEvent('touchstart', {
+            touches: [touch1],
+            cancelable: true,
+        }));
+        document.dispatchEvent(new TouchEvent('touchmove', {
+            touches: [touch2],
+            cancelable: true,
+        }));
+        advanceAnimationFrame();
+        expect(element.style.transform).toBe('translate(100px, 100px)');
+    });
+
+    it('should trigger onBoundaryHit callback during touch', () => {
+        const onBoundaryHit = vi.fn();
+        const draggable = new Draggable(element, {
+            enableTouch: true,
+            boundary: { minX: 0, maxX: 50 },
+            onBoundaryHit,
+        });
+        draggable.bindEvents();
+        const touch1 = new Touch({
+            identifier: 1,
+            target: element,
+            clientX: 0,
+            clientY: 0,
+        });
+        const touch2 = new Touch({
+            identifier: 1,
+            target: element,
+            clientX: 100,
+            clientY: 0,
+        });
+        element.dispatchEvent(new TouchEvent('touchstart', {
+            touches: [touch1],
+            cancelable: true,
+        }));
+        document.dispatchEvent(new TouchEvent('touchmove', {
+            touches: [touch2],
+            cancelable: true,
+        }));
+        advanceAnimationFrame();
+        expect(onBoundaryHit).toHaveBeenCalled();
+    });
+
+    it('should constrain to parent container', () => {
+        const parent = document.createElement('div');
+        parent.style.width = '300px';
+        parent.style.height = '300px';
+        parent.style.position = 'relative';
+        parent.appendChild(element);
+        document.body.appendChild(parent);
+
+        const draggable = new Draggable(element, {
+            constrainToParent: true,
+        });
+
+        vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
+            width: 100,
+            height: 100,
+            top: 0,
+            left: 0,
+            bottom: 100,
+            right: 100,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+        });
+        vi.spyOn(parent, 'getBoundingClientRect').mockReturnValue({
+            width: 300,
+            height: 300,
+            top: 0,
+            left: 0,
+            bottom: 300,
+            right: 300,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+        });
+
+        draggable.bindEvents();
+        element.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, button: 0 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 500 }));
+        advanceAnimationFrame();
+        expect(element.style.transform).toBe('translate(200px, 200px)');
+
+        parent.remove();
+    });
+
+    it('should constrain to parent container with partial boundary', () => {
+        const parent = document.createElement('div');
+        parent.style.width = '300px';
+        parent.style.height = '300px';
+        parent.style.position = 'relative';
+        parent.appendChild(element);
+        document.body.appendChild(parent);
+
+        const draggable = new Draggable(element, {
+            constrainToParent: true,
+            boundary: { maxX: 150 },
+        });
+
+        vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
+            width: 100,
+            height: 100,
+            top: 0,
+            left: 0,
+            bottom: 100,
+            right: 100,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+        });
+        vi.spyOn(parent, 'getBoundingClientRect').mockReturnValue({
+            width: 300,
+            height: 300,
+            top: 0,
+            left: 0,
+            bottom: 300,
+            right: 300,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+        });
+
+        draggable.bindEvents();
+        element.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, button: 0 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 500 }));
+        advanceAnimationFrame();
+        expect(element.style.transform).toBe('translate(150px, 200px)');
+
+        parent.remove();
+    });
+
+    it('should snap when distance is exactly threshold', () => {
+        const draggable = new Draggable(element, {
+            enableSnap: true,
+            snapToGrid: { x: 50, y: 50 },
+            snapThreshold: 5,
+        });
+        draggable.bindEvents();
+        element.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, button: 0 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 55, clientY: 55 }));
+        advanceAnimationFrame();
+        expect(element.style.transform).toBe('translate(50px, 50px)');
+    });
+
+    it('should not snap when distance is exactly over threshold', () => {
+        const draggable = new Draggable(element, {
+            enableSnap: true,
+            snapToGrid: { x: 50, y: 50 },
+            snapThreshold: 5,
+        });
+        draggable.bindEvents();
+        element.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, button: 0 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 56, clientY: 56 }));
+        advanceAnimationFrame();
+        expect(element.style.transform).toBe('translate(56px, 56px)');
+    });
+
+    it('should snap to negative grid positions', () => {
+        const draggable = new Draggable(element, {
+            enableSnap: true,
+            snapToGrid: { x: 50, y: 50 },
+            snapThreshold: 100,
+        });
+        draggable.bindEvents();
+        element.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, button: 0 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: -48, clientY: -48 }));
+        advanceAnimationFrame();
+        expect(element.style.transform).toBe('translate(-50px, -50px)');
+    });
+
+    it('should not apply snap when enableSnap is false', () => {
+        const draggable = new Draggable(element, {
+            enableSnap: false,
+            snapToGrid: { x: 50, y: 50 },
+            snapThreshold: 100,
+        });
+        draggable.bindEvents();
+        element.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, button: 0 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 27, clientY: 27 }));
+        advanceAnimationFrame();
+        expect(element.style.transform).toBe('translate(27px, 27px)');
+    });
+
+    it('should not apply snap when snapToGrid is null', () => {
+        const draggable = new Draggable(element, {
+            enableSnap: true,
+            snapToGrid: null,
+            snapThreshold: 100,
+        });
+        draggable.bindEvents();
+        element.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, button: 0 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 27, clientY: 27 }));
+        advanceAnimationFrame();
+        expect(element.style.transform).toBe('translate(27px, 27px)');
+    });
+
+    it('should disable animation by default', () => {
+        const draggable = new Draggable(element);
+        expect(element.style.transition).toBe('');
+    });
+
+    it('should clear animation on destroy', () => {
+        const draggable = new Draggable(element, { enableAnimation: true });
+        draggable.bindEvents();
+        expect(element.style.transition).toBe('transform 0.15s ease');
+        draggable.destroy();
+        expect(element.style.transition).toBe('');
+    });
+
+    it('should reset boundary hit status when moving within boundary', () => {
+        const onBoundaryHit = vi.fn();
+        const draggable = new Draggable(element, {
+            boundary: { minX: 0, maxX: 100 },
+            onBoundaryHit,
+        });
+        draggable.bindEvents();
+
+        element.dispatchEvent(new MouseEvent('mousedown', { clientX: 0, clientY: 0, button: 0 }));
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 0 }));
+        advanceAnimationFrame();
+        expect(onBoundaryHit).toHaveBeenCalledTimes(1);
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 0 }));
+        advanceAnimationFrame();
+        expect(onBoundaryHit).toHaveBeenCalledTimes(1);
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, clientY: 0 }));
+        advanceAnimationFrame();
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 0 }));
+        advanceAnimationFrame();
+        expect(onBoundaryHit).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not trigger touchmove when not dragging', () => {
+        const onDrag = vi.fn();
+        const draggable = new Draggable(element, {
+            enableTouch: true,
+            onDrag,
+        });
+        draggable.bindEvents();
+        const touch = new Touch({
+            identifier: 1,
+            target: element,
+            clientX: 50,
+            clientY: 50,
+        });
+        document.dispatchEvent(new TouchEvent('touchmove', {
+            touches: [touch],
+            cancelable: true,
+        }));
+        advanceAnimationFrame();
+        expect(onDrag).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger touchend when not dragging', () => {
+        const onDragEnd = vi.fn();
+        const draggable = new Draggable(element, {
+            enableTouch: true,
+            onDragEnd,
+        });
+        draggable.bindEvents();
+        document.dispatchEvent(new TouchEvent('touchend', {}));
+        expect(onDragEnd).not.toHaveBeenCalled();
+    });
 });

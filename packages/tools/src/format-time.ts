@@ -27,37 +27,17 @@ const parseDateComponents = (time: Date) => ({
 });
 
 /**
- * 分割格式字符串，尝试识别常见分隔符
- * @param formatter 格式字符串
- * @returns [左部分, 右部分, 分隔符]
- */
-const splitFormatter = (formatter: string): [string, string, string] => {
-    const separators = ['/', '-', ':', '.'];
-    const separator = separators.find((sep) => formatter.includes(sep)) || ' ';
-    const [left, right] = formatter.split(separator);
-    return [left, right, separator];
-};
-
-/**
- * 根据格式组件生成对应格式化字符串
- * @param components 格式化组件字典，如 YYYY, MM, DD...
+ * 根据格式字符串和组件生成格式化结果
+ * @param components 格式化组件字典
  * @param format 格式字符串
- * @param separator 分隔符
  * @returns 格式化后的字符串
  */
-const formatWithComponents = (
-    components: Record<string, string>,
-    format: string,
-    separator: string,
-): string => {
-    const [part1, part2, part3] = format.split(separator);
-    return [
-        components[part1] || '',
-        part2 ? separator : '',
-        components[part2] || '',
-        part3 ? separator : '',
-        components[part3] || '',
-    ].join('');
+const formatWithComponents = (components: Record<string, string>, format: string): string => {
+    let result = format;
+    for (const [key, value] of Object.entries(components)) {
+        result = result.replaceAll(key, value);
+    }
+    return result;
 };
 
 /**
@@ -72,15 +52,12 @@ const formatWithComponents = (
  * @returns 格式化后的字符串
  */
 export const formatTime = (time: Date | number, formatter?: TimeFormatter | string): string => {
-    // 处理时间戳和 Date 对象
     const date = typeof time === 'number' ? new Date(time) : time;
 
-    // 如果 formatter 是函数，调用自定义函数
     if (formatter && typeof formatter === 'function') {
         return formatter(date);
     }
 
-    // 拆解时间组件
     const { year, month, date: day, hour, minute, second } = parseDateComponents(date);
 
     const formattedComponents = {
@@ -99,18 +76,11 @@ export const formatTime = (time: Date | number, formatter?: TimeFormatter | stri
         S: second.toString(),
     };
 
-    // 默认格式：YYYY-MM-DD HH:mm:SS
     if (!formatter) {
         return `${formattedComponents.YYYY}-${formattedComponents.MM}-${formattedComponents.DD} ${formattedComponents.HH}:${formattedComponents.mm}:${formattedComponents.SS}`;
     }
 
-    // 如果 formatter 是字符串，则尝试拆分
-    const [leftFormat, rightFormat, leftSeparator] = splitFormatter(formatter as string);
-
-    const leftResult = formatWithComponents(formattedComponents, leftFormat, leftSeparator);
-    const rightResult = formatWithComponents(formattedComponents, rightFormat, leftSeparator);
-
-    return `${leftResult} ${rightResult}`.trim();
+    return formatWithComponents(formattedComponents, formatter as string);
 };
 
 export default formatTime;

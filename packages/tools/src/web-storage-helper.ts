@@ -249,7 +249,7 @@ export class CookieHelper {
             for (let i = 0; i < ca.length; i++) {
                 const c = ca[i].trim();
                 if (c.indexOf(nameEQ) === 0) {
-                    const stringValue = decrypt(c.substring(nameEQ.length));
+                    const stringValue = decrypt(decodeURIComponent(c.substring(nameEQ.length)));
                     const data: StoredData<any> = JSON.parse(stringValue);
                     return data.value as T;
                 }
@@ -362,6 +362,10 @@ export class IndexedDBHelper {
                 const store = transaction.objectStore(this.storeName);
                 const request = store.get(id);
                 request.onsuccess = () => {
+                    if (!request.result) {
+                        resolve(null);
+                        return;
+                    }
                     const stringValue = decrypt(request.result.value);
                     const data: StoredData<any> = JSON.parse(stringValue);
                     if (data.expiresAt === null || Date.now() < data.expiresAt) {

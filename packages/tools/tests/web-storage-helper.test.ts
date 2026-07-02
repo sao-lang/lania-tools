@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { LocalStorageHelper, SessionStorageHelper, CookieHelper } from '../src/web-storage-helper';
+import { LocalStorageHelper, SessionStorageHelper, CookieHelper, IndexedDBHelper } from '../src/web-storage-helper';
 
 describe('LocalStorageHelper', () => {
     beforeEach(() => {
@@ -84,6 +84,24 @@ describe('LocalStorageHelper', () => {
         expect(LocalStorageHelper.get('corrupt')).toBeNull();
         spy.mockRestore();
     });
+
+    it('should handle special characters with encryption', () => {
+        const specialStr = 'hello world!@#$%^&*()_+-=[]{}|;:,.<>?';
+        LocalStorageHelper.set('special', specialStr, { encryptData: true });
+        expect(LocalStorageHelper.get('special')).toBe(specialStr);
+    });
+
+    it('should handle empty string with encryption', () => {
+        LocalStorageHelper.set('empty', '', { encryptData: true });
+        expect(LocalStorageHelper.get('empty')).toBe('');
+    });
+
+    it('should handle null expiresAt', () => {
+        LocalStorageHelper.set('no-expire', 'value');
+        const raw = localStorage.getItem('no-expire');
+        const parsed = JSON.parse(raw!);
+        expect(parsed.expiresAt).toBeNull();
+    });
 });
 
 describe('SessionStorageHelper', () => {
@@ -134,6 +152,19 @@ describe('SessionStorageHelper', () => {
         SessionStorageHelper.set('key', 'secret', { encryptData: true });
         expect(SessionStorageHelper.get('key')).toBe('secret');
     });
+
+    it('should calculate size', () => {
+        SessionStorageHelper.set('k1', 'hello');
+        const size = SessionStorageHelper.size();
+        expect(size).toBeGreaterThan(0);
+    });
+
+    it('should handle corrupted data gracefully', () => {
+        sessionStorage.setItem('corrupt', 'not-valid-hex');
+        const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        expect(SessionStorageHelper.get('corrupt')).toBeNull();
+        spy.mockRestore();
+    });
 });
 
 describe('CookieHelper', () => {
@@ -150,10 +181,22 @@ describe('CookieHelper', () => {
         expect(CookieHelper.get('nonexistent')).toBeNull();
     });
 
+    it('should get a cookie value', () => {
+        CookieHelper.set('testKey', 'testValue');
+        expect(CookieHelper.get('testKey')).toBe('testValue');
+    });
+
     it('should delete a cookie', () => {
         CookieHelper.set('key', 'value');
         CookieHelper.delete('key');
         expect(document.cookie).not.toContain('key=');
+    });
+
+    it('should clear all cookies', () => {
+        CookieHelper.set('k1', 'v1');
+        CookieHelper.set('k2', 'v2');
+        CookieHelper.clear();
+        expect(CookieHelper.keys()).toHaveLength(0);
     });
 
     it('should get all keys when cookies exist', () => {
@@ -162,10 +205,23 @@ describe('CookieHelper', () => {
         expect(keys).toContain('k1');
     });
 
+    it('should get size', () => {
+        CookieHelper.set('k1', 'hello');
+        const size = CookieHelper.size();
+        expect(size).toBeGreaterThan(0);
+    });
+
     it('should set multiple cookies', () => {
         CookieHelper.setMultiple({ k1: 'v1', k2: 'v2' });
         expect(document.cookie).toContain('k1=');
         expect(document.cookie).toContain('k2=');
+    });
+
+    it('should get multiple cookies', () => {
+        CookieHelper.set('k1', 'v1');
+        CookieHelper.set('k2', 'v2');
+        const result = CookieHelper.getMultiple(['k1', 'k2']);
+        expect(result).toEqual({ k1: 'v1', k2: 'v2' });
     });
 
     it('should handle encrypted cookies', () => {
@@ -175,7 +231,453 @@ describe('CookieHelper', () => {
 
     it('should get encrypted cookie value', () => {
         CookieHelper.set('key', 'secret', { encryptData: true });
-        const rawCookie = document.cookie;
-        expect(rawCookie).toContain('key=');
+        expect(CookieHelper.get('key')).toBe('secret');
+    });
+
+    it('should handle corrupted cookie data gracefully', () => {
+        document.cookie = 'corrupt=not-valid-json';
+        const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        expect(CookieHelper.get('corrupt')).toBeNull();
+        spy.mockRestore();
+    });
+});
+
+describe('IndexedDBHelper', () => {
+    let originalIndexedDB: any;
+
+    beforeEach(() => {
+        originalIndexedDB = (globalThis as any).indexedDB;
+    });
+
+    afterEach(() => {
+        (globalThis as any).indexedDB = originalIndexedDB;
+        vi.restoreAllMocks();
+    });
+
+    it('should set a value', async () => {
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({ put: vi.fn() })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.set('key', 'value');
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockTransaction.oncomplete?.();
+        }, 10);
+
+        await promise;
+        expect(mockDB.transaction).toHaveBeenCalled();
+    });
+
+    it('should get a value', async () => {
+        const storedValue = JSON.stringify({ value: 'hello', expiresAt: null });
+        const mockGetRequest: any = {
+            onsuccess: null,
+            onerror: null,
+            result: { value: storedValue },
+        };
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({ get: vi.fn(() => mockGetRequest) })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.get('key');
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockGetRequest.onsuccess?.({ target: mockGetRequest });
+        }, 10);
+
+        const result = await promise;
+        expect(result).toBe('hello');
+    });
+
+    it('should return null for non-existent key', async () => {
+        const mockGetRequest: any = {
+            onsuccess: null,
+            onerror: null,
+            result: undefined,
+        };
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({ get: vi.fn(() => mockGetRequest) })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.get('nonexistent');
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockGetRequest.onsuccess?.({ target: mockGetRequest });
+        }, 10);
+
+        const result = await promise;
+        expect(result).toBeNull();
+    });
+
+    it('should delete a key', async () => {
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({ delete: vi.fn() })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.delete('key');
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockTransaction.oncomplete?.();
+        }, 10);
+
+        await promise;
+        expect(mockDB.transaction).toHaveBeenCalled();
+    });
+
+    it('should handle encrypted data', async () => {
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({ put: vi.fn() })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.set('key', 'secret', { encryptData: true });
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockTransaction.oncomplete?.();
+        }, 10);
+
+        await promise;
+        expect(mockDB.transaction).toHaveBeenCalled();
+    });
+
+    it('should handle expired data', async () => {
+        const storedValue = JSON.stringify({ value: 'expired', expiresAt: Date.now() - 10000 });
+        const mockGetRequest: any = {
+            onsuccess: null,
+            onerror: null,
+            result: { value: storedValue },
+        };
+        const mockTransaction1: any = {
+            objectStore: vi.fn(() => ({ get: vi.fn(() => mockGetRequest) })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockTransaction2: any = {
+            objectStore: vi.fn(() => ({ delete: vi.fn() })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB1: any = { transaction: vi.fn(() => mockTransaction1) };
+        const mockDB2: any = { transaction: vi.fn(() => mockTransaction2) };
+        const mockOpenRequest1: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB1,
+        };
+        const mockOpenRequest2: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB2,
+        };
+        let openCount = 0;
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => {
+                openCount++;
+                return openCount === 1 ? mockOpenRequest1 : mockOpenRequest2;
+            }),
+        };
+
+        const promise = IndexedDBHelper.get('key');
+
+        setTimeout(() => mockOpenRequest1.onsuccess?.({ target: mockOpenRequest1 }), 0);
+        setTimeout(() => mockGetRequest.onsuccess?.({ target: mockGetRequest }), 10);
+        setTimeout(() => mockOpenRequest2.onsuccess?.({ target: mockOpenRequest2 }), 20);
+        setTimeout(() => mockTransaction2.oncomplete?.(), 30);
+
+        const result = await promise;
+        expect(result).toBeNull();
+    });
+
+    it('should clear all data', async () => {
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({ clear: vi.fn() })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.clear();
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockTransaction.oncomplete?.();
+        }, 10);
+
+        await promise;
+        expect(mockDB.transaction).toHaveBeenCalled();
+    });
+
+    it('should get all keys', async () => {
+        const mockCursorRequest: any = {
+            onsuccess: null,
+            onerror: null,
+        };
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({ openCursor: vi.fn(() => mockCursorRequest) })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.keys();
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockCursorRequest.onsuccess?.({ target: { result: { primaryKey: 'key1', continue: vi.fn() } } });
+        }, 10);
+        setTimeout(() => {
+            mockCursorRequest.onsuccess?.({ target: { result: null } });
+        }, 20);
+
+        const keys = await promise;
+        expect(keys).toContain('key1');
+    });
+
+    it('should set multiple items', async () => {
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({ put: vi.fn() })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.setMultiple({ k1: 'v1', k2: 'v2' });
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockTransaction.oncomplete?.();
+        }, 10);
+
+        await promise;
+        expect(mockDB.transaction).toHaveBeenCalled();
+    });
+
+    it('should get multiple items', async () => {
+        const storedValue1 = JSON.stringify({ value: 'v1', expiresAt: null });
+        const storedValue2 = JSON.stringify({ value: 'v2', expiresAt: null });
+        let getCallCount = 0;
+        const mockGetRequest1: any = {
+            onsuccess: null,
+            onerror: null,
+            result: { value: storedValue1 },
+        };
+        const mockGetRequest2: any = {
+            onsuccess: null,
+            onerror: null,
+            result: { value: storedValue2 },
+        };
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({
+                get: vi.fn(() => {
+                    getCallCount++;
+                    return getCallCount === 1 ? mockGetRequest1 : mockGetRequest2;
+                }),
+            })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.getMultiple(['k1', 'k2']);
+
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 0);
+        setTimeout(() => {
+            mockGetRequest1.onsuccess?.({ target: mockGetRequest1 });
+        }, 10);
+        setTimeout(() => {
+            mockOpenRequest.onsuccess?.({ target: mockOpenRequest });
+        }, 20);
+        setTimeout(() => {
+            mockGetRequest2.onsuccess?.({ target: mockGetRequest2 });
+        }, 30);
+
+        const result = await promise;
+        expect(result).toEqual({ k1: 'v1', k2: 'v2' });
+    });
+
+    it('should get size', async () => {
+        const mockCursorRequest: any = {
+            onsuccess: null,
+            onerror: null,
+        };
+        const mockGetRequest: any = {
+            onsuccess: null,
+            onerror: null,
+            result: { value: JSON.stringify({ value: 'test', expiresAt: null }) },
+        };
+        let callCount = 0;
+        const mockTransaction: any = {
+            objectStore: vi.fn(() => ({
+                openCursor: vi.fn(() => {
+                    callCount++;
+                    return mockCursorRequest;
+                }),
+                get: vi.fn(() => mockGetRequest),
+            })),
+            oncomplete: null,
+            onerror: null,
+        };
+        const mockDB: any = {
+            transaction: vi.fn(() => mockTransaction),
+        };
+        const mockOpenRequest: any = {
+            onupgradeneeded: null,
+            onsuccess: null,
+            onerror: null,
+            result: mockDB,
+        };
+        (globalThis as any).indexedDB = {
+            open: vi.fn(() => mockOpenRequest),
+        };
+
+        const promise = IndexedDBHelper.size();
+
+        setTimeout(() => mockOpenRequest.onsuccess?.({ target: mockOpenRequest }), 0);
+        setTimeout(() => mockCursorRequest.onsuccess?.({ target: { result: { primaryKey: 'key1', continue: vi.fn() } } }), 10);
+        setTimeout(() => mockCursorRequest.onsuccess?.({ target: { result: null } }), 20);
+        setTimeout(() => mockOpenRequest.onsuccess?.({ target: mockOpenRequest }), 30);
+        setTimeout(() => mockGetRequest.onsuccess?.({ target: mockGetRequest }), 40);
+
+        const size = await promise;
+        expect(size).toBeGreaterThan(0);
     });
 });
