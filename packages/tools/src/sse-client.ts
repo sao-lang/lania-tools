@@ -10,7 +10,7 @@ type SSEEventCallback = (data: any) => void;
 type SSEErrorCallback = (error: Event) => void;
 
 /** SSE 初始化选项 */
-interface SSEOptions {
+export interface SSEOptions {
     url: string; // SSE 服务端 URL
     reconnectInterval?: number; // 自动重连间隔，单位毫秒，默认 5000
 }
@@ -26,13 +26,14 @@ export class SSEClient {
     private url: string; // SSE URL
     private reconnectInterval: number; // 重连间隔
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null; // 重连定时器
+    private closed = false; // 是否已被手动关闭
 
     private onMessage: SSEEventCallback = () => {}; // 消息回调
     private onError: SSEErrorCallback = () => {}; // 错误回调
 
     constructor(options: SSEOptions) {
         this.url = options.url;
-        this.reconnectInterval = options.reconnectInterval || 5000;
+        this.reconnectInterval = options.reconnectInterval ?? 5000;
         this.connect();
     }
 
@@ -65,6 +66,7 @@ export class SSEClient {
 
     /** 处理错误事件，触发回调并开始重连 */
     private handleError(event: Event) {
+        if (this.closed) return;
         console.error('SSE error:', event);
         this.startReconnect();
         this.onError(event);
@@ -72,11 +74,11 @@ export class SSEClient {
 
     /** 启动自动重连 */
     private startReconnect() {
-        if (!this.reconnectTimer) {
-            this.reconnectTimer = setTimeout(() => {
-                this.connect();
-            }, this.reconnectInterval);
-        }
+        if (this.closed || this.reconnectTimer) return;
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.connect();
+        }, this.reconnectInterval);
     }
 
     /** 停止自动重连 */
@@ -102,10 +104,13 @@ export class SSEClient {
         }
     }
 
-    /** 手动关闭 SSE 连接 */
+    /** 手动关闭 SSE 连接（同时停止自动重连） */
     public close() {
+        this.closed = true;
+        this.stopReconnect();
         if (this.eventSource) {
             this.eventSource.close();
+            this.eventSource = null;
         }
     }
 }

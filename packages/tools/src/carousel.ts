@@ -1,6 +1,6 @@
 type CarouselMode = 'slide' | 'marquee';
 
-type SuperCarouselOptions = {
+export type SuperCarouselOptions = {
     /** 轮播模式：'slide' (分段) 或 'marquee' (连续跑马灯) */
     mode: CarouselMode;
     /** 容器的选择器 (CSS Selector) - 包含所有轮播项的父元素 */

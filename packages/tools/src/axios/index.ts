@@ -91,6 +91,12 @@ export interface WrapperOptions {
 export class AxiosWrapper {
     /** 内部 Axios 实例 */
     private instance: AxiosInstance;
+    /**
+     * 专用于重试的 Axios 实例（不挂载拦截器）。
+     * 若重试仍走 this.instance，会再次进入 retryMiddleware 形成递归重试，
+     * 并让 onError / 响应中间件被重复执行。
+     */
+    private retryInstance: AxiosInstance;
     /** 并发控制器 */
     private concurrencyController!: GlobalConcurrencyController;
     /** 缓存管理器 */
@@ -115,6 +121,7 @@ export class AxiosWrapper {
      */
     constructor(config?: CreateAxiosDefaults, options?: WrapperOptions) {
         this.instance = axios.create(config);
+        this.retryInstance = axios.create(config);
         this.options = options || {};
         this.initManager();
         // 挂载拦截器，确保在构造函数结束前完成
@@ -191,6 +198,8 @@ export class AxiosWrapper {
             }
 
             // --- 刷新任务单例 ---
+            // onRefreshTokenExpired 放在单例内部，保证一次刷新失败只通知一次，
+            // 而不是每个等待中的并发请求各通知一次（避免重复弹窗 / 重复跳转）。
             if (!this.refreshTokenPromise) {
                 this.refreshTokenPromise = (async () => {
                     const refreshToken = await getRefreshToken?.();
@@ -201,9 +210,14 @@ export class AxiosWrapper {
                         throw new Error('Invalid new access token.');
 
                     return token;
-                })().finally(() => {
-                    this.refreshTokenPromise = null; // 无论成功失败都清除单例
-                });
+                })()
+                    .catch((error) => {
+                        onRefreshTokenExpired?.();
+                        throw error;
+                    })
+                    .finally(() => {
+                        this.refreshTokenPromise = null; // 无论成功失败都清除单例
+                    });
             }
 
             // 等待刷新完成
@@ -211,7 +225,6 @@ export class AxiosWrapper {
             try {
                 newToken = await this.refreshTokenPromise;
             } catch (e) {
-                onRefreshTokenExpired?.();
                 return Promise.reject(e);
             }
 
@@ -243,31 +256,46 @@ export class AxiosWrapper {
      * 此方法在 InterceptorManager.retryMiddleware 中被调用。
      */
     private async retryRequest(err: any) {
-        const config = err.config as InternalAxiosRequestConfig & {
-            __retryCount?: number;
-        };
+        const config = err?.config as
+            | (InternalAxiosRequestConfig & { __retryCount?: number })
+            | undefined;
 
+        // 没有 config 的错误（例如配置阶段抛错）无法重放，直接抛出。
+        if (!config) throw err;
+
+        const maxRetries = this.options.retryTimes ?? DEFAULT_MAX_RETRIES;
+        const retryDelay = this.options.retryDelay ?? DEFAULT_RETRY_DELAY;
         config.__retryCount = config.__retryCount || 0;
 
-        if (config.__retryCount < (this.options.retryTimes || DEFAULT_MAX_RETRIES)) {
-            config.__retryCount++;
+        let lastError = err;
+        while (config.__retryCount < maxRetries) {
+            config.__retryCount += 1;
 
             // 延迟等待
-            await new Promise((r) => setTimeout(r, this.options.retryDelay || DEFAULT_RETRY_DELAY));
+            await new Promise((r) => setTimeout(r, retryDelay));
 
-            // 核心：重新将请求放入 GlobalConcurrencyController 队列
-            return this.concurrencyController.run(() => this.instance(config));
+            try {
+                // 核心：重新将请求放入 GlobalConcurrencyController 队列。
+                // 使用无拦截器的 retryInstance，避免递归进入 retryMiddleware。
+                return await this.concurrencyController.run(() => this.retryInstance(config));
+            } catch (retryError) {
+                lastError = retryError;
+                // 用户主动取消时立即停止重试。
+                if ((retryError as any)?.isCancel || (retryError as any)?.__CANCEL__) {
+                    throw retryError;
+                }
+            }
         }
 
-        // 超过重试次数，抛出原错误
-        throw err;
+        // 超过重试次数，抛出最后一次错误
+        throw lastError;
     }
 
     /**
      * 通用请求包装器
      * 统一处理：CancelToken 注入、并发控制队列
      */
-    public async request<T>(config: AxiosWrapperMethodConfig) {
+    public async request<T = any>(config: AxiosWrapperMethodConfig) {
         const { cancelTokenId } = config;
 
         // 1. 处理取消令牌
@@ -292,16 +320,18 @@ export class AxiosWrapper {
 
     // --- 快捷方法 API ---
 
-    public get<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
+    public get<T = any>(url: string, data?: any, config: AxiosWrapperMethodConfig = {}) {
         return this.request<T>({
             ...config,
             method: 'get',
             url: url ?? config.url,
-            params: data ?? config.data,
+            // GET 的第二个参数是 query params，回退目标也必须是 config.params，
+            // 而不是 config.data（后者是请求体）。
+            params: data ?? config.params,
         });
     }
 
-    public post<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
+    public post<T = any>(url: string, data?: any, config: AxiosWrapperMethodConfig = {}) {
         return this.request<T>({
             ...config,
             method: 'post',
@@ -310,7 +340,7 @@ export class AxiosWrapper {
         });
     }
 
-    public put<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
+    public put<T = any>(url: string, data?: any, config: AxiosWrapperMethodConfig = {}) {
         config.url = url ?? config.url;
         config.data = data ?? config.data;
         return this.request<T>({
@@ -321,7 +351,7 @@ export class AxiosWrapper {
         });
     }
 
-    public delete<T>(url: string, data?: any, config: AxiosRequestConfig = {}) {
+    public delete<T = any>(url: string, data?: any, config: AxiosWrapperMethodConfig = {}) {
         return this.request<T>({
             ...config,
             method: 'delete',
@@ -332,8 +362,19 @@ export class AxiosWrapper {
 
     // --- Manager API ---
 
-    public uploadFile(url: string, file: File, options?: UploadFileOptions) {
-        return this.uploadManager.uploadFile(url, file, options);
+    public uploadFile(url: string, file: File, options: UploadFileOptions = {}) {
+        const { cancelTokenId } = options;
+        if (!cancelTokenId) {
+            return this.uploadManager.uploadFile(url, file, options);
+        }
+
+        // 通过 cancelTokenId 复用统一的取消令牌管理，支持 cancelRequest(id)。
+        const cancelTokenSource = axios.CancelToken.source();
+        this.cancelTokenManager.set(cancelTokenId, cancelTokenSource);
+
+        return this.uploadManager
+            .uploadFile(url, file, { ...options, cancelToken: cancelTokenSource })
+            .finally(() => this.cancelTokenManager.delete(cancelTokenId));
     }
 
     public startPolling<T>(config: PollingConfig<T>) {
@@ -385,15 +426,14 @@ export class AxiosWrapper {
             if (!finalFilename) {
                 const disposition = response.headers['content-disposition'];
                 if (disposition) {
-                    const match = disposition.match(
-                        /filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i,
-                    );
-                    if (match && match[1]) {
-                        finalFilename = decodeURIComponent(match[1]);
-                    }
+                    finalFilename = parseContentDispositionFilename(disposition) || undefined;
                 }
             }
-            finalFilename = finalFilename || url.split('/').pop() || 'download_file';
+            // URL 回退时先去掉 query / hash，否则文件名会带上 ?a=1
+            finalFilename =
+                finalFilename ||
+                url.split('#')[0].split('?')[0].split('/').pop() ||
+                'download_file';
 
             // 创建 Blob URL 并触发下载
             const blobUrl = URL.createObjectURL(response.data);
@@ -406,7 +446,8 @@ export class AxiosWrapper {
 
             // 延迟清理资源
             setTimeout(() => {
-                document.body.removeChild(a);
+                // 组件/页面可能在此期间被卸载，先确认节点仍在文档中
+                a.parentNode?.removeChild(a);
                 URL.revokeObjectURL(blobUrl);
             }, 100);
 
@@ -415,6 +456,31 @@ export class AxiosWrapper {
             if (config?.cancelTokenId) this.cancelTokenManager.delete(config.cancelTokenId);
         }
     }
+}
+
+/**
+ * 从 Content-Disposition 头中解析文件名。
+ *
+ * 按 RFC 6266 优先使用 `filename*=UTF-8''...`（可携带非 ASCII 字符），
+ * 再回退到普通 `filename="..."`。
+ */
+function parseContentDispositionFilename(disposition: string): string | null {
+    const utf8Match = /filename\*\s*=\s*(?:UTF-\d['"]*)?([^;\r\n]+)/i.exec(disposition);
+    if (utf8Match) {
+        const raw = utf8Match[1].trim().replace(/^['"]|['"]$/g, '');
+        try {
+            return decodeURIComponent(raw);
+        } catch {
+            return raw;
+        }
+    }
+
+    const asciiMatch = /filename\s*=\s*"?([^";\r\n]*)"?/i.exec(disposition);
+    if (asciiMatch && asciiMatch[1]) {
+        return asciiMatch[1].trim();
+    }
+
+    return null;
 }
 
 /**
@@ -440,3 +506,5 @@ export class AxiosWrapperFactory {
 }
 
 export { DebounceThrottleCancelError } from './DebounceThrottleManager';
+export type { UploadFileOptions } from './UploadManager';
+export type { PollingConfig } from './PollingManager';

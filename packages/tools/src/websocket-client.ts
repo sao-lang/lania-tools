@@ -11,7 +11,7 @@ type WebSocketEventCallback = (event: Event) => void;
 type WebSocketMessageCallback = (message: string) => void;
 
 /** WebSocket 客户端选项 */
-interface WebSocketOptions {
+export interface WebSocketOptions {
     url: string; // WebSocket 连接 URL
     reconnectInterval?: number; // 重连间隔（毫秒），默认 5000
     heartbeatInterval?: number; // 心跳间隔（毫秒），默认 30000
@@ -30,6 +30,8 @@ export class WebSocketClient {
     private maxReconnectAttempts: number;
     private reconnectAttempts: number = 0;
     private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private manuallyClosed = false;
 
     private onOpen: WebSocketEventCallback = () => {};
     private onClose: WebSocketEventCallback = () => {};
@@ -42,14 +44,20 @@ export class WebSocketClient {
      */
     constructor(options: WebSocketOptions) {
         this.url = options.url;
-        this.reconnectInterval = options.reconnectInterval || 5000;
-        this.heartbeatInterval = options.heartbeatInterval || 30000;
-        this.maxReconnectAttempts = options.maxReconnectAttempts || Infinity;
+        this.reconnectInterval = options.reconnectInterval ?? 5000;
+        this.heartbeatInterval = options.heartbeatInterval ?? 30000;
+        this.maxReconnectAttempts = options.maxReconnectAttempts ?? Infinity;
+        this.connect();
     }
 
     /** 建立 WebSocket 连接 */
     private connect() {
-        if (this.ws) this.ws.close();
+        this.manuallyClosed = false;
+        if (this.ws) {
+            // 主动替换连接时不要触发旧连接的自动重连。
+            this.ws.onclose = null;
+            this.ws.close();
+        }
         this.ws = new WebSocket(this.url);
         this.ws.onopen = this.handleOpen.bind(this);
         this.ws.onmessage = this.handleMessage.bind(this);
@@ -62,6 +70,13 @@ export class WebSocketClient {
         this.reconnectAttempts = 0;
         this.startHeartbeat();
         this.onOpen(event);
+    }
+
+    private clearReconnectTimer() {
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
     }
 
     /** 消息接收回调 */
@@ -77,9 +92,12 @@ export class WebSocketClient {
     /** 连接关闭回调 */
     private handleClose(event: CloseEvent) {
         this.stopHeartbeat();
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            setTimeout(() => this.connect(), this.reconnectInterval);
+        if (!this.manuallyClosed && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
+            this.reconnectTimer = setTimeout(() => {
+                this.reconnectTimer = null;
+                this.connect();
+            }, this.reconnectInterval);
         } else {
             this.onClose(event);
         }
@@ -87,9 +105,10 @@ export class WebSocketClient {
 
     /** 启动心跳检测 */
     private startHeartbeat() {
+        this.stopHeartbeat();
         if (this.heartbeatInterval > 0) {
             this.heartbeatTimer = setInterval(() => {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                if (this.ws && this.ws.readyState === (WebSocket.OPEN ?? 1)) {
                     this.ws.send('ping'); // 可自定义心跳消息
                 }
             }, this.heartbeatInterval);
@@ -109,13 +128,16 @@ export class WebSocketClient {
      * @param message 待发送的字符串
      */
     public send(message: string) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        if (this.ws && this.ws.readyState === (WebSocket.OPEN ?? 1)) {
             this.ws.send(message);
         }
     }
 
-    /** 主动关闭 WebSocket 连接 */
+    /** 主动关闭 WebSocket 连接（不会触发自动重连） */
     public close() {
+        this.manuallyClosed = true;
+        this.clearReconnectTimer();
+        this.stopHeartbeat();
         if (this.ws) this.ws.close();
     }
 

@@ -35,7 +35,9 @@ const parseDateComponents = (time: Date) => ({
 const formatWithComponents = (components: Record<string, string>, format: string): string => {
     let result = format;
     for (const [key, value] of Object.entries(components)) {
-        result = result.replaceAll(key, value);
+        // 使用 split/join 而不是 replaceAll：编译目标是 es6，
+        // 且这种写法在所有运行时行为一致（不做正则解析）。
+        result = result.split(key).join(value);
     }
     return result;
 };

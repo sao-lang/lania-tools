@@ -48,12 +48,13 @@ export function generateRequestKey(req: AxiosRequestConfig): string {
     const url = req.url || '';
 
     // 3. 稳定序列化 URL 参数
-    // 如果 req.params 是对象，使用 stableStringify；否则使用空字符串
-    const params = req.params ? stableStringify(req.params) : '';
+    // 只有 null/undefined 视为“没有参数”。0、false、'' 同样是有效值，
+    // 若用真值判断会让 { data: 0 } 和没有 body 的请求生成相同的 Key。
+    const params =
+        req.params === undefined || req.params === null ? '' : stableStringify(req.params);
 
     // 4. 稳定序列化请求体数据
-    // 如果 req.data 是对象，使用 stableStringify；否则使用空字符串
-    const data = req.data ? stableStringify(req.data) : '';
+    const data = req.data === undefined || req.data === null ? '' : stableStringify(req.data);
 
     // 5. 组合成唯一的 Key： method:url:params:data
     return `${method}:${url}:${params}:${data}`;

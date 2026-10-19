@@ -48,9 +48,11 @@ export class GlobalConcurrencyController {
     private executeTask<T>(queuedTask: QueuedTask<T>): void {
         // 增加活跃任务计数
         this.activeCount++;
-        // 执行任务并处理其结果
-        queuedTask
-            .task()
+        // 执行任务并处理其结果。
+        // 用 Promise.resolve().then() 包一层，保证任务同步抛错时也能走 catch/finally，
+        // 否则 activeCount 永远不会回退，队列会死锁。
+        Promise.resolve()
+            .then(() => queuedTask.task())
             .then((result) => {
                 queuedTask.resolve(result); // 成功时通知等待的 Promise
             })

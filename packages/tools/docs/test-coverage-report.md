@@ -1,262 +1,97 @@
 # 单测覆盖率报告
 
+> 最近一次更新：2026-10-19。`src/axios/**` 已纳入覆盖率统计。
+
 ## 一、测试运行结果
 
-| 指标      | 数值     |
-| ------- | ------ |
-| 测试文件总数  | 14 个   |
-| 通过测试    | 398 个  |
-| 失败测试    | 0 个    |
-| 未处理错误   | 0 个    |
-| 总体代码覆盖率 | 98.31% |
+| 指标 | 数值 |
+| --- | --- |
+| 测试文件总数 | 23 个 |
+| 通过测试 | 656 个 |
+| 失败测试 | 0 个 |
+| 未处理错误 | 0 个 |
+| 语句覆盖率 | 99.59% |
+| 分支覆盖率 | 97.14% |
+| 函数覆盖率 | 97.05% |
 
-***
+运行方式：
 
-## 二、文件测试状态汇总
-
-| 序号 | 源文件                       | 测试文件                                  | 状态     | 覆盖率    |
-| -- | ------------------------- | ------------------------------------- | ------ | ------ |
-| 1  | `event-bus.ts`            | event-bus.test.ts                     | ✅ 完整   | 100%   |
-| 2  | `type.ts`                 | type.test.ts                          | ✅ 完整   | 100%   |
-| 3  | `validator.ts`            | validator.test.ts                     | ✅ 完整   | 100%   |
-| 4  | `store.ts`                | store.test.ts                         | ✅ 基本完整 | 99%    |
-| 5  | `tools.ts`                | tools.test.ts                         | ✅ 基本完整 | 96.63% |
-| 6  | `virtual-scroller.ts`     | virtual-scroller.test.ts              | ✅ 基本完整 | 96.46% |
-| 7  | `draggable.ts`            | draggable.test.ts                     | ✅ 基本完整 | 97.11% |
-| 8  | `sse-client.ts`           | client.test.ts                        | ⚠️ 需补充 | 90.26% |
-| 9  | `websocket-client.ts`     | client.test.ts                        | ⚠️ 需补充 | 96.4%  |
-| 10 | `carousel.ts`             | carousel.test.ts                      | ✅ 完整   | 100%   |
-| 11 | `convert-chinese-text.ts` | convert-chinese-text.test.ts          | ✅ 基本完整 | 96.15% |
-| 12 | `format-time.ts`          | format-time.test.ts                   | ✅ 完整   | 100%   |
-| 13 | `web-storage-helper.ts`   | web-storage-helper.test.ts            | ✅ 基本完整 | 98.7%  |
-| 14 | `axios/`                  | axios.test.ts + axios-wrapper.test.ts | ❌ 大量缺失 | -      |
-
-***
-
-## 三、详细测试清单
-
-### ✅ 完整测试 (3个)
-
-#### 1. event-bus.ts
-
-- **功能**：全局事件发布/订阅、命名空间支持、错误处理
-- **测试覆盖**：14 个测试用例，100% 覆盖率
-- **状态**：✅ 完整
-
-#### 2. type.ts
-
-- **功能**：`isBoolean`、`isNumber`、`isString`、`isArray`、`isObject`、`isEmptyObject`、`isArrayLike`、`isWindow`、`isHTMLElement`、`isPrimitive`、`isFalsy`
-- **测试覆盖**：49 个测试用例，100% 覆盖率
-- **状态**：✅ 完整
-
-#### 3. validator.ts
-
-- **功能**：规则注册、异步验证、错误处理、自定义规则
-- **测试覆盖**：48 个测试用例，100% 覆盖率
-- **状态**：✅ 完整
-
-***
-
-### ✅ 基本完整 (5个)
-
-#### 4. store.ts
-
-- **功能**：类 Redux 状态管理、reducer、action、middleware、plugin
-- **测试覆盖**：24 个测试用例，99% 覆盖率
-- **缺失**：第 228-230 行、第 336 行（边界情况）
-- **建议**：补充边界测试
-
-#### 5. tools.ts
-
-- **功能**：`debounce`、`throttle`、`deepClone`、`isDeepEqual`、`copy`（文本/图片复制）
-- **测试覆盖**：43 个测试用例，96.63% 覆盖率
-- **缺失**：第 307-308 行、第 324-325 行（copy 函数边缘情况）
-- **建议**：补充 copy 函数的异常处理测试
-
-#### 6. virtual-scroller.ts
-
-- **功能**：长列表虚拟滚动、动态高度、加载更多
-- **测试覆盖**：7 个测试用例，96.46% 覆盖率
-- **缺失**：第 327 行、第 333 行、第 343-351 行（部分边界情况）
-- **建议**：补充边界测试
-
-#### 7. draggable.ts
-
-- **功能**：DOM 拖拽、边界限制、吸附网格、动画、触摸支持、父容器约束
-- **测试覆盖**：33 个测试用例，97.11% 覆盖率
-- **缺失**：第 161-168 行、第 171-173 行（touch 事件解绑的部分边界情况）
-- **建议**：补充 touch 事件解绑的边界测试
-
-#### 8. web-storage-helper.ts
-
-- **功能**：LocalStorage、SessionStorage、Cookie、IndexedDB 封装，支持过期、加密
-- **测试覆盖**：49 个测试用例，98.7% 覆盖率
-- **修复**：已修复第 365 行 `request.result` 空值保护问题
-- **缺失**：IndexedDBHelper 的 initDB onerror 分支、openCursor onerror 分支
-- **建议**：补充 IndexedDB 错误处理测试
-
-***
-
-### ⚠️ 需补充测试 (5个)
-
-#### 8. sse-client.ts
-
-- **功能**：EventSource 封装、自动重连、消息/错误回调
-- **测试覆盖**：1 个测试用例，90.26% 覆盖率
-- **缺失**：重连机制、onopen 回调、关闭连接
-- **需要补充**：
-  - 自动重连测试
-  - 手动关闭测试
-  - onopen 回调测试
-  - 重连定时器清理测试
-
-#### 9. websocket-client.ts
-
-- **功能**：WebSocket 封装、自动重连、心跳检测、事件回调
-- **测试覆盖**：2 个测试用例，96.4% 覆盖率
-- **缺失**：心跳机制、重连次数限制
-- **需要补充**：
-  - 心跳机制测试（startHeartbeat/stopHeartbeat）
-  - 重连次数达到上限时触发 onClose
-  - 连接关闭时停止心跳
-  - 非 OPEN 状态不发送消息
-
-#### 10. carousel.ts
-
-- **功能**：图片轮播、循环播放、自动播放、指示器、事件回调
-- **测试覆盖**：12 个测试用例，79.65% 覆盖率
-- **缺失**：循环播放、自动播放、指示器点击
-- **需要补充**：
-  - 自动播放/暂停测试
-  - 无限循环测试
-  - 指示器点击切换测试
-  - 事件回调测试（onChange、onBeforeChange）
-
-#### 11. convert-chinese-text.ts
-
-- **功能**：批量替换页面中文文本、MutationObserver 监听、LRU 缓存、Deque 队列
-- **测试覆盖**：16 个测试用例，83.63% 覆盖率
-- **缺失**：DOM 变化观察、缓存淘汰
-- **需要补充**：
-  - MutationObserver DOM 变化观察测试
-  - Deque 类队列操作测试
-  - 缓存超过 maxCacheSize 时的淘汰测试
-  - 排除选择器功能测试
-
-#### 12. format-time.ts
-
-- **功能**：时间戳/Date 格式化、自定义格式字符串、12/24 小时制
-- **测试覆盖**：5 个测试用例，76.72% 覆盖率
-- **缺失**：字符串格式支持
-- **需要补充**：
-  - 各种格式字符串测试（`YYYY/MM/DD`、`HH:mm:SS`、`hh:mm`、`YYYY-MM-DD HH:mm`）
-  - 12 小时制测试（`hh`、`h`）
-  - 单数字格式测试（`M`、`D`、`H`、`m`、`S`）
-
-***
-
-### ❌ 有缺陷/大量缺失 (1个)
-
-#### 13. axios/ - Axios 封装模块
-
-**功能模块**：
-
-| 文件                               | 功能                                    |
-| -------------------------------- | ------------------------------------- |
-| `index.ts`                       | AxiosWrapper 核心类（双Token刷新、重试、缓存、并发控制） |
-| `InterceptorManager.ts`          | 拦截器管理器（12个中间件）                        |
-| `CacheManager.ts`                | 缓存管理                                  |
-| `DebounceThrottleManager.ts`     | 防抖节流管理                                |
-| `GlobalConcurrencyController.ts` | 全局并发控制                                |
-| `CancelTokenManager.ts`          | 取消令牌管理                                |
-| `PollingManager.ts`              | 轮询管理                                  |
-| `UploadManager.ts`               | 文件上传管理                                |
-
-**测试覆盖状态**：
-
-| 功能                              | 测试状态  |
-| ------------------------------- | ----- |
-| 构造函数/工厂模式                       | ✅ 已覆盖 |
-| get/post/put/delete             | ✅ 已覆盖 |
-| downloadFile                    | ✅ 已覆盖 |
-| CacheManager（独立）                | ✅ 已覆盖 |
-| CancelTokenManager（独立）          | ✅ 已覆盖 |
-| DebounceThrottleManager（独立）     | ✅ 已覆盖 |
-| GlobalConcurrencyController（独立） | ✅ 已覆盖 |
-| PollingManager（独立）              | ✅ 已覆盖 |
-| UploadManager（独立）               | ✅ 已覆盖 |
-| **双 Token 刷新**                  | ❌ 缺失  |
-| **请求重试**                        | ❌ 缺失  |
-| **Token 注入集成**                  | ❌ 缺失  |
-| **缓存集成**                        | ❌ 缺失  |
-| **防抖节流集成**                      | ❌ 缺失  |
-| **并发控制集成**                      | ❌ 缺失  |
-| **文件上传集成**                      | ❌ 缺失  |
-| **轮询集成**                        | ❌ 缺失  |
-| **取消请求集成**                      | ❌ 缺失  |
-| **所有中间件集成**                     | ❌ 缺失  |
-
-***
-
-## 四、按优先级排序的补充清单
-
-### 🔴 P0 - 必须修复/补充
-
-| 序号 | 文件                    | 内容              | 原因     |
-| -- | --------------------- | --------------- | ------ |
-| 1  | axios/index.ts        | 双 Token 刷新集成测试  | 核心业务功能 |
-| 2  | axios/index.ts        | 请求重试集成测试        | 核心业务功能 |
-
-### 🟡 P1 - 建议补充
-
-| 序号 | 文件                  | 内容                                 |
-| -- | ------------------- | ---------------------------------- |
-| 5  | axios/index.ts      | Token 注入集成测试                       |
-| 6  | axios/index.ts      | 缓存集成测试                             |
-| 7  | axios/index.ts      | 防抖节流集成测试                           |
-| 8  | axios/index.ts      | 文件上传/轮询/取消请求集成测试                   |
-| 9  | format-time.ts      | 字符串格式测试（YYYY/MM/DD、HH:mm:SS、12小时制） |
-| 10 | sse-client.ts       | 重连机制、关闭连接测试                        |
-| 11 | websocket-client.ts | 心跳机制、重连次数限制测试                      |
-
-### 🟢 P2 - 可选补充
-
-| 序号 | 文件                                        | 内容                           |
-| -- | ----------------------------------------- | ---------------------------- |
-| 12 | carousel.ts                               | 自动播放、循环、指示器测试                |
-| 13 | draggable.ts                              | touch 事件解绑边界测试               |
-| 14 | convert-chinese-text.ts                   | 极端边缘情况测试（空字典键、textContent为空） |
-| 15 | store.ts / tools.ts / virtual-scroller.ts | 边界情况补充                       |
-
-***
-
-## 五、总结
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      src 目录测试状态汇总                            │
-├─────────────────────────────────────────────────────────────────────┤
-│  ✅ 完整 (5/14)                                                      │
-│     ├── event-bus.ts    (100%)                                      │
-│     ├── type.ts         (100%)                                      │
-│     ├── validator.ts    (100%)                                      │
-│     ├── carousel.ts     (100%)                                      │
-│     └── format-time.ts  (100%)                                      │
-├─────────────────────────────────────────────────────────────────────┤
-│  ✅ 基本完整 (6/14)                                                  │
-│     ├── store.ts        (99%) - 建议补充边界测试                     │
-│     ├── tools.ts        (96.63%) - 建议补充 copy 异常测试            │
-│     ├── virtual-scroller.ts (96.46%) - 建议补充边界测试              │
-│     ├── draggable.ts    (97.11%) - 建议补充 touch 解绑边界测试       │
-│     ├── convert-chinese-text.ts (100%) - 分支覆盖 96.15%            │
-│     └── web-storage-helper.ts (98.7%) - 已修复空值保护缺陷           │
-├─────────────────────────────────────────────────────────────────────┤
-│  ⚠️ 需补充 (2/14)                                                    │
-│     ├── sse-client.ts   (90.26%) - 重连机制                         │
-│     └── websocket-client.ts (96.4%) - 心跳、重连次数                 │
-├─────────────────────────────────────────────────────────────────────┤
-│  ❌ 有缺陷/大量缺失 (1/14)                                           │
-│     └── axios/          - 9个集成测试缺失                           │
-└─────────────────────────────────────────────────────────────────────┘
+```bash
+npx vitest run --coverage
 ```
 
+质量门（`vitest.config.ts`）：语句 ≥ 95%、分支 ≥ 90%、函数 ≥ 90%、行 ≥ 95%。
+
+## 二、测试分层
+
+| 层次 | 文件 | 说明 |
+| --- | --- | --- |
+| 后端辅助系统 | `tests/server/test-server.ts` | 真实 HTTP 服务端：双 Token、分片上传、重试、取消、轮询、下载、SSE |
+| Manager 单元测试 | `tests/axios/managers.test.ts` | 常量、请求 Key、缓存、取消令牌、防抖节流、并发、轮询 |
+| 上传单元测试 | `tests/axios/upload-manager.test.ts` | 分片 MD5、文件 MD5、Worker / 主线程回退、重试、并发、断点续传 |
+| 请求层集成 | `tests/axios/wrapper.integration.test.ts` | HTTP 方法、Token、拦截器、业务 code、缓存、防抖节流、重试、取消、并发、轮询、工厂 |
+| 双 Token 集成 | `tests/axios/double-token.integration.test.ts` | 并发单次刷新、轮换、过期、失败、防死循环 |
+| 上传集成 | `tests/axios/upload.integration.test.ts` | 12MB 真实分片、续传、重试、并发上限、取消、MD5 合并校验 |
+| 下载集成 | `tests/axios/download.integration.test.ts` | 文件名解析、资源清理、取消、失败 |
+| Worker | `tests/axios/md5-worker.test.ts` | Web Worker 分片 MD5 与错误分支 |
+| 日志单元测试 | `tests/logger.test.ts` | 级别、命名空间、上下文、历史、handler、格式化、全局控制 |
+| 边界补全 | `tests/edge-cases.test.ts` | 各模块未覆盖分支 |
+
+## 三、各文件覆盖率
+
+| 源文件 | 语句 | 分支 | 函数 | 状态 |
+| --- | --- | --- | --- | --- |
+| `carousel.ts` | 100% | 100% | 100% | ✅ |
+| `convert-chinese-text.ts` | 100% | 96.15% | 100% | ✅ |
+| `draggable.ts` | 100% | 100% | 100% | ✅ |
+| `event-bus.ts` | 100% | 100% | 100% | ✅ |
+| ormat-time.ts | 100% | 100% | 100% | ✅ |
+| `logger.ts` | 100% | 100% | 100% | ✅ |
+| `sse-client.ts` | 100% | 100% | 90.9% | ✅ |
+| `store.ts` | 100% | 98.38% | 100% | ✅ |
+| `tools.ts` | 100% | 96.96% | 100% | ✅ |
+| `type.ts` | 100% | 100% | 100% | ✅ |
+| `validator.ts` | 100% | 100% | 100% | ✅ |
+| `virtual-scroller.ts` | 100% | 94.91% | 100% | ✅ |
+| `web-storage-helper.ts` | 99.56% | 92.62% | 88.46% | ✅ |
+| `websocket-client.ts` | 100% | 97.14% | 87.5% | ✅ |
+| `axios/CacheManager.ts` | 100% | 100% | 100% | ✅ |
+| `axios/CancelTokenManager.ts` | 100% | 100% | 100% | ✅ |
+| `axios/DebounceThrottleManager.ts` | 100% | 100% | 100% | ✅ |
+| `axios/GlobalConcurrencyController.ts` | 100% | 100% | 100% | ✅ |
+| `axios/InterceptorManager.ts` | 97.96% | 97.11% | 100% | ✅ |
+| `axios/PollingManager.ts` | 100% | 95.45% | 100% | ✅ |
+| `axios/UploadManager.ts` | 100% | 100% | 100% | ✅ |
+| `axios/const.ts` | 100% | 100% | 100% | ✅ |
+| `axios/helper.ts` | 100% | 100% | 100% | ✅ |
+| `axios/index.ts` | 97.83% | 87.36% | 100% | ✅ |
+| `axios/md5-calculator.worker.ts` | 93.54% | 100% | 75% | ✅ |
+
+未覆盖的少量分支主要是浏览器 / SSR 环境下不可达的防御性代码（例如非 Worker 环境的兜底、未被触发的 `onerror` 回调），已在源码中标注用途。
+
+***
+
+## 四、测试过程中发现并修复的源码缺陷
+
+| # | 文件 | 问题 | 修复 |
+| --- | --- | --- | --- |
+| 1 | `axios/helper.ts` | `params`/`data` 用真值判断，`0`/`false`/`''` 与空值生成相同 Key | 仅 `null`/`undefined` 视为空 |
+| 2 | `axios/GlobalConcurrencyController.ts` | 排队任务同步抛错时 `activeCount` 不回退，队列死锁 | `Promise.resolve().then()` 包裹任务 |
+| 3 | `axios/UploadManager.ts` | 重试在并发槽位内递归，`maxConcurrent=1` 时自锁 | 重试循环移到槽位之外 |
+| 4 | `axios/UploadManager.ts` | 无 `Worker` 环境无法计算文件 MD5 | 增加主线程分片计算回退 |
+| 5 | `axios/UploadManager.ts` | `FileReader` 不可用时无法读取分片 | 优先 `Blob.arrayBuffer()` |
+| 6 | `axios/InterceptorManager.ts` | `isCancelError` 判断写错，防抖/节流取消被当成网络错误 | 正确识别取消来源 |
+| 7 | `axios/InterceptorManager.ts` | 重试成功后的响应被丢弃，仍抛原错误 | 返回恢复后的响应 |
+| 8 | `axios/InterceptorManager.ts` | 缓存命中通过 reject 假响应实现，导致真实请求或异常 | 替换 `adapter` 短路 |
+| 9 | `axios/CacheManager.ts` | 会把业务响应的 `data` 字段误当响应体解包 | 仅解包真正的 `AxiosResponse` |
+| 10 | `axios/index.ts` | 重试递归进入拦截器，重复 `onError` | 新增无拦截器 `retryInstance` |
+| 11 | `axios/index.ts` | `get()` 的第二参数回退到 `config.data` 而非 `config.params` | 修正回退目标 |
+| 12 | `axios/index.ts` | 下载文件名优先取 `filename`，中文名丢失；URL 回退带 query | 按 RFC 6266 优先 `filename*`，剥离 query |
+| 13 | `axios/index.ts` | 100ms 后无条件 `removeChild`，页面已卸载时抛错 | 检查 `parentNode` |
+| 14 | `axios/index.ts` | 并发刷新失败会为每个等待者各通知一次登出 | 通知移入刷新单例内部 |
+| 15 | `axios/InterceptorManager.ts` | 重放请求被 `tokenProvider` 的旧值覆盖 | 重放请求跳过 Token 注入 |
+| 16 | `websocket-client.ts` | 构造后不连接、手动关闭后仍重连、重连定时器不清理 | 构造函数连接并补全生命周期 |
+| 17 | `sse-client.ts` | 手动关闭后仍自动重连 | 关闭时清理定时器并置标记 |
+| 18 | `web-storage-helper.ts` | `CookieHelper.delete` 未带 `path=/`，删不掉已写入的 Cookie | 删除时补上 `path=/` |
+| 19 | `web-storage-helper.ts` | `IndexedDBHelper.keys()` 调用两次 `openCursor()`，`onerror` 监听的是另一个请求 | 复用同一个 request |
+| 20 | `src/index.ts` | 全量入口漏导出 `event-bus` / `websocket-client` / `carousel` / `virtual-scroller` | 补齐全部模块导出，并导出各模块选项类型 |

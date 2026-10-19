@@ -52,7 +52,7 @@ interface StoredData<T> {
 }
 
 /** 存储选项 */
-interface StorageOptions {
+export interface StorageOptions {
     expiresInSeconds?: number; // 数据过期时间（秒）
     encryptData?: boolean;      // 是否加密存储
 }
@@ -263,7 +263,8 @@ export class CookieHelper {
 
     /** 删除 Cookie */
     static delete(name: string): void {
-        document.cookie = `${name}=; Max-Age=-99999999;`;
+        // 必须带 path，否则无法删除 set() 写入的 path=/ Cookie
+        document.cookie = `${name}=; Max-Age=-99999999; path=/`;
     }
 
     /** 清空所有 Cookie */
@@ -410,7 +411,8 @@ export class IndexedDBHelper {
             const transaction = db.transaction([this.storeName]);
             const store = transaction.objectStore(this.storeName);
             const keys: string[] = [];
-            store.openCursor().onsuccess = (event: Event) => {
+            const request = store.openCursor();
+            request.onsuccess = (event: Event) => {
                 const cursor = (event.target as IDBRequest).result;
                 if (cursor) {
                     keys.push(cursor.primaryKey.toString());
@@ -419,7 +421,7 @@ export class IndexedDBHelper {
                     resolve(keys);
                 }
             };
-            store.openCursor().onerror = () => reject(store.openCursor().error);
+            request.onerror = () => reject(request.error);
         });
     }
 

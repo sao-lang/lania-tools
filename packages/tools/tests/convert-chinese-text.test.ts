@@ -233,7 +233,12 @@ describe('convertPageChinese', () => {
         container.innerHTML = '<span>张三</span><span>李四</span><span>王五</span>';
         const dict = { 张: '張', 三: '叁', 李: '李', 四: '肆', 王: '王', 五: '伍' };
         const stop = convertPageChinese(dict, container, { batchSize: 1 });
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        // Each batch is scheduled through an idle callback, so poll instead of
+        // assuming a fixed delay (which is flaky under heavy test parallelism).
+        const startedAt = Date.now();
+        while (container.textContent !== '張叁李肆王伍' && Date.now() - startedAt < 2000) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        }
         expect(container.textContent).toBe('張叁李肆王伍');
         stop();
     });

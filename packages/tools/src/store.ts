@@ -72,7 +72,7 @@ export type FromPathType<P extends string, S, K> = P extends '' ? S : PathType<K
  * 派生状态：每个字段是一个函数，接收 state，返回一个值。
  * 类似于 Vue 的 computed、Redux 的 selector。
  */
-type DerivedState<S, D> = {
+export type DerivedState<S, D> = {
     [K in keyof D]: (state: S) => D[K];
 };
 
@@ -91,7 +91,7 @@ type GetDerivedStateType<S, D, P extends keyof D | ''> = P extends keyof D
       : never;
 
 /** Reducer 映射类型：key → reducer 函数 */
-type ReducersMap<S> = Record<string, (state: S, payload?: any) => S>;
+export type ReducersMap<S> = Record<string, (state: S, payload?: any) => S>;
 
 /** 提取 reducer 的 payload 类型 */
 type ReducerPayload<F> = F extends (state: any, payload: infer P) => any ? P : undefined;

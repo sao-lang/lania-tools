@@ -9,11 +9,13 @@ export default defineConfig({
         coverage: {
             provider: 'v8',
             include: ['packages/**/src/**/*.ts'],
-            exclude: [
-                'packages/**/src/axios/**',
-                'packages/**/src/index.ts',
-                'packages/**/src/**/*.worker.ts',
-            ],
+            exclude: ['packages/**/src/index.ts'],
+            thresholds: {
+                statements: 95,
+                branches: 90,
+                functions: 90,
+                lines: 95,
+            },
         },
     },
     resolve: {

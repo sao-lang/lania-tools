@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { CacheManager } from './CacheManager';
 // 假设 DebounceThrottleManager 导出了自定义的 CancelError
-import { DebounceThrottleManager } from './DebounceThrottleManager';
+import { DebounceThrottleCancelError, DebounceThrottleManager } from './DebounceThrottleManager';
 import type { WrapperOptions } from '..';
 
 interface InterceptorManagerOptions {
@@ -39,8 +39,15 @@ export class InterceptorManager {
      * 判断是否为主动取消、防抖/节流取消或缓存命中的错误
      */
     private isCancelError(err: any): boolean {
-        // 兼容 Axios 原生 CancelToken (axios.isCancel) 和 我们自定义的防抖错误 (err.isCancel)
-        return err instanceof DebounceThrottleManager || axios.isCancel(err);
+        // 兼容三种取消来源：
+        // 1. Axios 原生 CancelToken（axios.isCancel）
+        // 2. DebounceThrottleCancelError 实例
+        // 3. clear()/cancelDebounce() 抛出的普通对象（带 isCancel 标记）
+        return (
+            err instanceof DebounceThrottleCancelError ||
+            err?.isCancel === true ||
+            axios.isCancel(err)
+        );
     }
 
     /**
@@ -55,27 +62,17 @@ export class InterceptorManager {
         this.instance.interceptors.request.use(
             async (config) => {
                 const ctx = { config };
-                await this.runRequestMiddlewares(ctx);
-                return ctx.config;
+                try {
+                    await this.runRequestMiddlewares(ctx);
+                    return ctx.config;
+                } catch (err) {
+                    return this.handleRequestError(err, ctx.config);
+                }
             },
             async (err) => {
-                const ctx = { err };
-                // 1. 致命修复：如果错误是缓存命中，将其转为成功Promise，转发到 Response.onFulfilled 路径
-                if (this.isCacheHitError(ctx.err)) {
-                    // Promise.resolve(AxiosResponse) 才能进入 Response.onFulfilled
-                    return Promise.resolve(ctx.err);
-                }
-                // 2. 健壮性修复：如果是取消错误（防抖/节流/手动），直接返回，不触发后续错误中间件
-                if (this.isCancelError(ctx.err)) {
-                    return Promise.reject(ctx.err);
-                }
-                // 3. 运行自定义请求错误中间件
-                const fixedConfig = await this.runRequestErrorMiddlewares(ctx);
-                if (fixedConfig) {
-                    // 如果错误被修复，则使用修复后的配置重新发起请求
-                    return fixedConfig; // Axios 拦截器 onRejected 路径返回 config 会继续请求
-                }
-                return Promise.reject(ctx.err);
+                // Axios 会对“非本拦截器抛出且上游未处理”的错误走这里，
+                // 也包括其他拦截器抛出的错误。统一交给同一套恢复逻辑。
+                return this.handleRequestError(err);
             },
         );
 
@@ -83,21 +80,76 @@ export class InterceptorManager {
         this.instance.interceptors.response.use(
             async (response) => {
                 const ctx = { response };
-                await this.runResponseMiddlewares(ctx);
-                return ctx.response;
+                try {
+                    await this.runResponseMiddlewares(ctx);
+                    return ctx.response;
+                } catch (err) {
+                    // 响应中间件（双 Token 刷新、自定义响应拦截器）抛出的错误
+                    // 不会回调本拦截器的 onRejected，必须在这里统一处理。
+                    return this.handleResponseError(err);
+                }
             },
             async (err) => {
-                const ctx = { err };
-                // 1. 健壮性修复：如果是取消错误，直接返回，不触发全局错误和重试
-                if (this.isCancelError(ctx.err)) {
-                    return Promise.reject(ctx.err);
-                }
-                await this.runResponseErrorMiddlewares(ctx);
-                // 触发全局 onError 回调
-                this.instanceOptions.onError?.(ctx.err);
-                return Promise.reject(ctx.err);
+                return this.handleResponseError(err);
             },
         );
+    }
+
+    /**
+     * 统一的请求阶段错误处理。
+     *
+     * 说明：Axios 1.x 中，async 请求拦截器的 onFulfilled 抛错后不会回调同一个
+     * 拦截器的 onRejected（与经典 Promise 语义不同）。因此错误恢复必须放在
+     * onFulfilled 的 catch 里，onRejected 仅作为其他拦截器抛错的兜底入口。
+     */
+    private async handleRequestError(
+        err: any,
+        config?: InternalAxiosRequestConfig,
+    ): Promise<InternalAxiosRequestConfig | never> {
+        // 1. 缓存命中（历史路径兜底）：转为成功响应，转发到 Response.onFulfilled
+        if (this.isCacheHitError(err)) {
+            return Promise.resolve(err as any) as any;
+        }
+        // 2. 取消错误（防抖/节流/手动）直接返回，不触发后续错误中间件
+        if (this.isCancelError(err)) {
+            return Promise.reject(err);
+        }
+        // 3. 补齐 config，供自定义 onRejected 返回修复后的配置
+        if (err && typeof err === 'object' && !err.config && config) {
+            err.config = config;
+        }
+        const fixedConfig = await this.runRequestErrorMiddlewares({ err });
+        if (fixedConfig) {
+            // 返回 config 后 Axios 会用它继续 dispatch 请求
+            return fixedConfig;
+        }
+        return Promise.reject(err);
+    }
+
+    /**
+     * 统一的响应阶段错误处理：
+     * 1. 取消错误直接抛出（不触发 onError / 重试）
+     * 2. 尝试自定义响应错误拦截器与自动重试，成功则返回恢复后的响应
+     * 3. 仍失败则调用全局 onError 并抛出最终错误
+     */
+    private async handleResponseError(err: any): Promise<AxiosResponse | never> {
+        const ctx = { err };
+        if (this.isCancelError(ctx.err)) {
+            return Promise.reject(ctx.err);
+        }
+        try {
+            // 重试或自定义错误拦截器可能成功恢复请求，此时必须把
+            // 恢复后的响应返回给调用方，而不是继续抛出原错误。
+            const recovered = await this.runResponseErrorMiddlewares(ctx);
+            if (recovered) {
+                return recovered;
+            }
+        } catch (finalError) {
+            ctx.err = finalError;
+        }
+        // 触发全局 onError 回调
+        this.instanceOptions.onError?.(ctx.err);
+        return Promise.reject(ctx.err);
     }
 
     // ===================== 请求中间件 =====================
@@ -127,6 +179,10 @@ export class InterceptorManager {
 
     private tokenMiddleware = async (ctx: { config: InternalAxiosRequestConfig }) => {
         const { tokenProvider } = this.instanceOptions;
+        // 双 Token 刷新后的重放请求已经带有新 Token。
+        // 此时若再次调用 tokenProvider，很容易用闭包里的旧 Token 覆盖新 Token，
+        // 导致重放必然失败，因此跳过注入。
+        if ((ctx.config as any).__gotAccessToken) return;
         if (tokenProvider) {
             const token = await tokenProvider();
             ctx.config.headers = ctx.config.headers || {};
@@ -148,9 +204,10 @@ export class InterceptorManager {
         const cached = this.cacheManager.get(ctx.config);
 
         if (cached !== null) {
-            // 致命修复：返回一个 Promise.reject，但包含 __fromCache 标志。
-            // 这会导致它进入 Request.onError，然后被转发到 Response.onFulfilled。
-            // 这样才能触发 cacheResponseMiddleware 之后的响应中间件。
+            // 关键：Axios 的请求拦截器无法直接“返回响应”来短路请求，
+            // 它返回的值会被当作新的 config 继续 dispatch。
+            // 因此这里替换 adapter，让请求根本不离开进程，
+            // 同时仍能完整地走一遍 Response 拦截器链。
             const fakeResponse: CacheHitError = {
                 __fromCache: true,
                 data: cached,
@@ -160,7 +217,7 @@ export class InterceptorManager {
                 config: ctx.config,
                 request: {},
             } as any;
-            return Promise.reject(fakeResponse);
+            ctx.config.adapter = async () => fakeResponse;
         }
     };
 
@@ -187,7 +244,16 @@ export class InterceptorManager {
     private customRequestMiddleware = async (ctx: { config: InternalAxiosRequestConfig }) => {
         const interceptor = this.instanceOptions.interceptors?.request;
         if (interceptor?.onFulfilled) {
-            ctx.config = await interceptor.onFulfilled(ctx.config);
+            try {
+                ctx.config = await interceptor.onFulfilled(ctx.config);
+            } catch (error: any) {
+                // Axios 的请求拦截器错误默认不携带 config，
+                // 补上以后自定义 onRejected 才有机会返回修复后的 config 重试。
+                if (error && typeof error === 'object' && !error.config) {
+                    error.config = ctx.config;
+                }
+                throw error;
+            }
         }
     };
 

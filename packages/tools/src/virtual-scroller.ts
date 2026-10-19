@@ -7,7 +7,7 @@ interface Item {
     data: any;
 }
 
-interface Options {
+export interface VirtualScrollerOptions {
     containerSelector: string | HTMLElement;
     estimatedItemHeight: number;
     bufferSize: number;
@@ -17,7 +17,7 @@ interface Options {
 }
 
 export class VirtualScroller {
-    private options: Options;
+    private options: VirtualScrollerOptions;
     private container!: HTMLElement;
     private listElement!: HTMLElement;
     private domPool: Map<string | number, HTMLElement> = new Map(); // DOM 元素重用池
@@ -32,7 +32,7 @@ export class VirtualScroller {
     private itemsToLoadCount = 20;
     private isLoading = false;
 
-    constructor(options: Options) {
+    constructor(options: VirtualScrollerOptions) {
         this.options = options;
         this.setupElements(options.containerSelector);
         this.setupInitialState();
