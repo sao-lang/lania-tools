@@ -27,6 +27,11 @@
             "require": "./dist/cjs/draggable.cjs.cjs",
             "types": "./dist/types/draggable.d.ts"
         },
+        "./logger": {
+            "import": "./dist/esm/logger.esm.js",
+            "require": "./dist/cjs/logger.cjs.cjs",
+            "types": "./dist/types/logger.d.ts"
+        },
         "./event-bus": {
             "import": "./dist/esm/event-bus.esm.js",
             "require": "./dist/cjs/event-bus.cjs.cjs",

@@ -2,6 +2,28 @@
 
 企业级前端工具函数库，14 个独立模块，覆盖 Web 开发中最高频的使用场景。
 
+## 文档站点
+
+完整的原理说明、API 与示例见 VitePress 文档站点：
+
+```bash
+pnpm docs:dev     # 本地预览
+pnpm docs:build   # 构建静态站点
+```
+
+文档覆盖每个模块的「解决什么问题 / 原理 / 配置 / 示例 / 注意事项 / 测试覆盖」，其中 `AxiosWrapper` 单独成章（拦截器管道、并发、缓存、防抖节流、重试取消、双 Token、轮询、分片上传、下载）。
+
+## 测试
+
+```bash
+npx vitest run --coverage
+```
+
+- 656 个用例，23 个测试文件；
+- 语句覆盖率 99.59%，分支覆盖率 97.14%；
+- `src/axios/**` 已纳入覆盖率统计；
+- 双 Token 与大文件上传通过 `tests/server/test-server.ts` 提供的真实 HTTP 服务端验证。
+
 ## 架构设计
 
 ```
@@ -9,6 +31,7 @@
 ├── 基础工具层
 │   ├── type.ts              - 类型判断（比 typeof 更准）
 │   ├── tools.ts             - 通用工具（防抖/节流/深拷贝/深比较）
+│   ├── logger.ts            - 结构化日志（级别/命名空间/上下文/可插拔输出）
 │   └── format-time.ts       - 时间格式化
 │
 ├── 数据管理层
@@ -37,6 +60,7 @@
     ├── sse-client                 - 仅 SSE
     ├── store                      - 仅状态管理
     ├── format-time                - 仅时间格式化
+    ├── logger                     - 仅日志
     ├── validator                  - 仅验证器
     ├── websocket-client           - 仅 WebSocket
     └── web-storage-helper         - 仅存储

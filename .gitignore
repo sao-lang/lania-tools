@@ -7,3 +7,5 @@ dist-ssr
 build
 packages/**/dist
 packages/**/node_modules
+docs/.vitepress/cache
+docs/.vitepress/dist
