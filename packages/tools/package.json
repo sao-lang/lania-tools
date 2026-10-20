@@ -22,6 +22,11 @@
             "require": "./dist/cjs/axios/index.cjs.cjs",
             "types": "./dist/types/axios/index.d.ts"
         },
+        "./axios-wrapper/*": {
+            "import": "./dist/esm/axios/*.esm.js",
+            "require": "./dist/cjs/axios/*.cjs.cjs",
+            "types": "./dist/types/axios/*.d.ts"
+        },
         "./draggable": {
             "import": "./dist/esm/draggable.esm.js",
             "require": "./dist/cjs/draggable.cjs.cjs",
