@@ -2,6 +2,8 @@
 
 企业级前端工具库 Monorepo，封装了日常开发中高频使用的工具函数和类库，覆盖 HTTP 请求、状态管理、事件总线、存储、拖拽、轮播、虚拟滚动、验证、SSE/WebSocket 等场景。
 
+📖 在线文档：<https://sao-lang.github.io/lania-tools/>（VitePress 构建，推送 `main` 后由 GitHub Actions 自动发布）
+
 ## 核心理念
 
 **开箱即用**：每个模块独立导出，按需引入，零配置即可使用。
@@ -130,6 +132,8 @@ lania-tools/
 │   ├── tools/          # 核心工具包
 │   └── json/           # 数据字典包
 ├── scripts/            # 构建脚本
+├── docs/               # VitePress 文档站点源码
+├── .github/workflows/  # CI（文档自动部署到 GitHub Pages）
 ├── .changeset/         # Changesets 配置
 ├── package.json
 ├── pnpm-workspace.yaml
@@ -150,6 +154,12 @@ pnpm build
 
 # 代码检查
 pnpm eslint
+
+# 文档本地开发（默认 http://localhost:5173/）
+pnpm docs:dev
+
+# 构建文档静态站点（输出到 docs/.vitepress/dist）
+pnpm docs:build
 
 # 发布
 pnpm release

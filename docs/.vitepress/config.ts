@@ -1,13 +1,21 @@
 import { defineConfig } from 'vitepress';
 
+// GitHub Pages 的项目站点部署在 https://<owner>.github.io/<repo>/，因此需要同步设置 base。
+// CI 中由 GITHUB_REPOSITORY 自动推导，本地开发保持根路径，也可用 DOCS_BASE 覆盖。
+const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+const base =
+    process.env.DOCS_BASE ??
+    (repoName && !repoName.endsWith('.github.io') ? `/${repoName}/` : '/');
+
 export default defineConfig({
+    base,
     lang: 'zh-CN',
     title: '@lania-tools/tools',
     description: '前端工具函数库与 AxiosWrapper 增强请求库：完整原理、API 参考与实战示例',
     cleanUrls: true,
     lastUpdated: true,
 
-    head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
+    head: [['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }]],
 
     themeConfig: {
         logo: '/logo.svg',
