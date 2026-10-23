@@ -48,6 +48,8 @@ import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 import { Draggable } from '@lania-tool/tools/draggable';
 import { WebSocketClient } from '@lania-tool/tools/websocket-client';
 import { SSEClient } from '@lania-tool/tools/sse-client';
+import { Carousel } from '@lania-tool/tools/carousel';
+import { VirtualScroller } from '@lania-tool/tools/virtual-scroller';
 ```
 
 ## 模块全景
@@ -167,3 +169,22 @@ pnpm release
 # 提交（规范化）
 pnpm commit
 ```
+
+## 发布流程
+
+本项目使用 Changesets 管理版本。完整发布步骤：
+
+```bash
+# 1. 描述改动（生成 .changeset/*.md）
+pnpm changeset
+
+# 2. 提升版本号并生成 CHANGELOG
+pnpm vp
+
+# 3. 构建并发布到 npm
+pnpm release
+```
+
+`pnpm release` 等价于 `pnpm build && pnpm release:only`，后者会先 `nrm use npm` 切到官方源再执行 `changeset publish`。
+
+> **注意**：`changeset publish` 在发布结尾会检查 token 是否需要 2FA（`GET /-/npm/v1/user`），granular token 无此接口权限时会打印 `403` 报错，但**发布本身已成功**，可忽略该提示。发布后 registry 读取有约 1 分钟缓存延迟，属正常现象。

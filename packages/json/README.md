@@ -6,10 +6,19 @@
 
 | 文件 | 说明 | 条目数 |
 |------|------|--------|
-| `simpledToTraditional.json` | 简体中文 → 繁体中文映射 | ~2700+ |
-| `traditionalToSimpled.json` | 繁体中文 → 简体中文映射 | ~2700+ |
+| `simpledToTraditional.json` | 简体中文 → 繁体中文映射 | 2506 |
+| `traditionalToSimpled.json` | 繁体中文 → 简体中文映射 | 2495 |
 
 ## 使用方式
+
+### 简写导入
+
+```typescript
+// 默认导出即为 simpledToTraditional（简体 → 繁体）
+import defaultDict from '@lania-tool/json';
+```
+
+> 推荐使用下方的完整子路径导入，语义更明确。
 
 ### 与 convert-chinese-text 配合使用
 
@@ -54,6 +63,25 @@ Object.entries(simpledToTraditional).forEach(([simplified, traditional]) => {
   "龙": "龍",
   ...
 }
+```
+
+## 可导入路径
+
+| 导入路径 | 内容 |
+|----------|------|
+| `@lania-tool/json` | 默认导出 `simpledToTraditional`（简 → 繁） |
+| `@lania-tool/json/simpledToTraditional.json` | 简 → 繁映射表 |
+| `@lania-tool/json/traditionalToSimpled.json` | 繁 → 简映射表 |
+| `@lania-tool/json/package.json` | 包元信息 |
+
+支持 ESM 与 CommonJS：
+
+```typescript
+// ESM（需要 import attributes）
+import s2t from '@lania-tool/json/simpledToTraditional.json' with { type: 'json' };
+
+// CommonJS
+const s2t = require('@lania-tool/json/simpledToTraditional.json');
 ```
 
 ## 注意事项

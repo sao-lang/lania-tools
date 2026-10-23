@@ -54,6 +54,24 @@ convert('', { 記憶: '记忆' });          // ''（空文本直接返回）
 convert('abc', {});                    // 'abc'（空字典直接返回）
 ```
 
+### 配套字典
+
+现成的简繁字典可直接安装 [`@lania-tool/json`](https://www.npmjs.com/package/@lania-tool/json) 使用：
+
+```bash
+pnpm add @lania-tool/json
+```
+
+```ts
+import simpledToTraditional from '@lania-tool/json/simpledToTraditional.json';
+import traditionalToSimpled from '@lania-tool/json/traditionalToSimpled.json';
+
+convert('中國臺灣', traditionalToSimpled);  // '中国台湾'
+convert('中国台湾', simpledToTraditional);  // '中國臺灣'
+```
+
+详见 json 包 README。
+
 ### 内部机制
 
 ```ts
