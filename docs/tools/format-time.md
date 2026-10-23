@@ -5,7 +5,7 @@
 把 `Date` 或时间戳格式化为字符串，支持模板字符串与自定义函数。
 
 ```ts
-import { formatTime } from '@lania-tools/tools/format-time';
+import { formatTime } from '@lania-tool/tools/format-time';
 ```
 
 ## 签名

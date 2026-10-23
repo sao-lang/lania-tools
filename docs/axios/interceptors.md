@@ -245,7 +245,7 @@ HTTP
 ## 示例：请求追踪
 
 ```ts
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 
 const http = new AxiosWrapper(
     { baseURL: '/api' },

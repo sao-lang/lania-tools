@@ -14,7 +14,7 @@ SSE（Server-Sent Events）是**单向**推送：服务端持续向客户端发�
 ## 导入
 
 ```ts
-import { SSEClient } from '@lania-tools/tools/sse-client';
+import { SSEClient } from '@lania-tool/tools/sse-client';
 ```
 
 ## 快速开始
@@ -155,7 +155,7 @@ sse.on('message', (raw) => {
 ## 完整示例：带心跳状态的任务进度
 
 ```ts
-import { SSEClient } from '@lania-tools/tools/sse-client';
+import { SSEClient } from '@lania-tool/tools/sse-client';
 
 export function subscribeTask(
     taskId: string,

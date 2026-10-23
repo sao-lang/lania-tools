@@ -14,13 +14,13 @@
 ## 导入
 
 ```ts
-import { EventBus } from '@lania-tools/tools/event-bus';
+import { EventBus } from '@lania-tool/tools/event-bus';
 ```
 
 ## 最小示例
 
 ```ts
-import { EventBus } from '@lania-tools/tools/event-bus';
+import { EventBus } from '@lania-tool/tools/event-bus';
 
 const bus = new EventBus();
 
@@ -220,7 +220,7 @@ bus.getEventCount('global', 'notify'); // 2
 ## 完整示例：编辑器保存流程
 
 ```ts
-import { EventBus } from '@lania-tools/tools/event-bus';
+import { EventBus } from '@lania-tool/tools/event-bus';
 
 const bus = new EventBus();
 bus.registerNamespace('editor');

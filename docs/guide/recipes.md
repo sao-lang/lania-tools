@@ -8,8 +8,8 @@
 
 ```ts
 import axios from 'axios';
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
-import { LocalStorageHelper } from '@lania-tools/tools/web-storage-helper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
+import { LocalStorageHelper } from '@lania-tool/tools/web-storage-helper';
 
 const session = {
     get access() {
@@ -67,8 +67,8 @@ export async function login(username: string, password: string) {
 **目标**：输入时防抖；快速输入时旧请求被取消；相同关键词命中缓存。
 
 ```ts
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
-import { debounce } from '@lania-tools/tools/tools';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
+import { debounce } from '@lania-tool/tools/tools';
 
 const http = new AxiosWrapper(
     { baseURL: '/api' },
@@ -114,7 +114,7 @@ async function loadPage(page: number, size = 20) {
 ## 4. 大文件上传（续传 + 进度 + 取消 + 合并）
 
 ```ts
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 
 const http = new AxiosWrapper({ baseURL: '/api' }, { maxConcurrent: 3 });
 
@@ -172,9 +172,9 @@ await http.downloadFile('/export/orders', 'post', '订单导出.xlsx', {
 ## 6. 实时通知：SSE / WebSocket + 事件总线
 
 ```ts
-import { EventBus } from '@lania-tools/tools/event-bus';
-import { SSEClient } from '@lania-tools/tools/sse-client';
-import { WebSocketClient } from '@lania-tools/tools/websocket-client';
+import { EventBus } from '@lania-tool/tools/event-bus';
+import { SSEClient } from '@lania-tool/tools/sse-client';
+import { WebSocketClient } from '@lania-tool/tools/websocket-client';
 
 export const bus = new EventBus();
 bus.registerNamespace('realtime');
@@ -208,8 +208,8 @@ bus.on('order:paid', (order) => refreshOrder(order.id), { namespace: 'realtime' 
 ## 7. 全局状态 + 持久化
 
 ```ts
-import { Store } from '@lania-tools/tools/store';
-import { LocalStorageHelper } from '@lania-tools/tools/web-storage-helper';
+import { Store } from '@lania-tool/tools/store';
+import { LocalStorageHelper } from '@lania-tool/tools/web-storage-helper';
 
 type State = { user: { name: string } | null; theme: 'light' | 'dark' };
 
@@ -246,7 +246,7 @@ export const store = new Store({
 ## 8. 表单校验（异步 + 跨字段）
 
 ```ts
-import { Validator, Rules } from '@lania-tools/tools/validator';
+import { Validator, Rules } from '@lania-tool/tools/validator';
 
 type RegisterForm = {
     username: string;
@@ -279,7 +279,7 @@ const { isValid, errors } = await registerValidator.validate(form);
 ## 9. 长列表虚拟滚动
 
 ```ts
-import { VirtualScroller } from '@lania-tools/tools/virtual-scroller';
+import { VirtualScroller } from '@lania-tool/tools/virtual-scroller';
 
 const scroller = new VirtualScroller({
     containerSelector: '#list',
@@ -310,7 +310,7 @@ scroller.clear();
 ## 10. 拖拽 + 网格吸附
 
 ```ts
-import { Draggable } from '@lania-tools/tools/draggable';
+import { Draggable } from '@lania-tool/tools/draggable';
 
 const draggable = new Draggable(document.getElementById('panel')!, {
     boundary: { minX: 0, maxX: 800, minY: 0, maxY: 600 },
@@ -335,7 +335,7 @@ draggable.bindEvents();
 ## 11. 轮播（slide / marquee）
 
 ```ts
-import { Carousel } from '@lania-tools/tools/carousel';
+import { Carousel } from '@lania-tool/tools/carousel';
 
 const carousel = new Carousel({
     mode: 'slide',
@@ -362,7 +362,7 @@ carousel.stopAutoplay();
 ## 12. 多后端实例
 
 ```ts
-import { AxiosWrapperFactory } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapperFactory } from '@lania-tool/tools/axios-wrapper';
 
 export const userApi = AxiosWrapperFactory.create(
     'user',
@@ -385,7 +385,7 @@ export const fileApi = AxiosWrapperFactory.create(
 ## 13. 页面文本批量替换
 
 ```ts
-import { convertPageChinese } from '@lania-tools/tools/convert-chinese-text';
+import { convertPageChinese } from '@lania-tool/tools/convert-chinese-text';
 
 const stop = convertPageChinese(
     { 記憶: '记忆', 網路: '网络', 程式: '程序' },
@@ -431,8 +431,8 @@ stop();
 ```vue
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { SSEClient } from '@lania-tools/tools/sse-client';
-import { VirtualScroller } from '@lania-tools/tools/virtual-scroller';
+import { SSEClient } from '@lania-tool/tools/sse-client';
+import { VirtualScroller } from '@lania-tool/tools/virtual-scroller';
 
 const listRef = ref<HTMLElement | null>(null);
 let sse: SSEClient | null = null;
@@ -467,7 +467,7 @@ onBeforeUnmount(() => {
 
 ```tsx
 import { useEffect, useRef } from 'react';
-import { WebSocketClient } from '@lania-tools/tools/websocket-client';
+import { WebSocketClient } from '@lania-tool/tools/websocket-client';
 
 export function useRealtime(onMessage: (data: string) => void) {
     const clientRef = useRef<WebSocketClient | null>(null);

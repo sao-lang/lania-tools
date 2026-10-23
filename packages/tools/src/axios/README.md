@@ -492,7 +492,7 @@ class AxiosWrapperFactory {
 ## 完整使用示例
 
 ```typescript
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 
 const http = new AxiosWrapper(
   { baseURL: '/api', timeout: 10000 },

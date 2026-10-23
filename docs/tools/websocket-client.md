@@ -15,7 +15,7 @@
 ## 导入
 
 ```ts
-import { WebSocketClient } from '@lania-tools/tools/websocket-client';
+import { WebSocketClient } from '@lania-tool/tools/websocket-client';
 ```
 
 ## 快速开始
@@ -194,8 +194,8 @@ ws.on('open', () => {
 ## 完整示例：带鉴权与重连状态的通知客户端
 
 ```ts
-import { WebSocketClient } from '@lania-tools/tools/websocket-client';
-import { EventBus } from '@lania-tools/tools/event-bus';
+import { WebSocketClient } from '@lania-tool/tools/websocket-client';
+import { EventBus } from '@lania-tool/tools/event-bus';
 
 const bus = new EventBus();
 bus.registerNamespace('realtime');

@@ -10,7 +10,7 @@ import {
     SessionStorageHelper,
     CookieHelper,
     IndexedDBHelper,
-} from '@lania-tools/tools/web-storage-helper';
+} from '@lania-tool/tools/web-storage-helper';
 ```
 
 ## 介质对比
@@ -209,7 +209,7 @@ const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('
 ## 完整示例：带过期的用户偏好
 
 ```ts
-import { LocalStorageHelper } from '@lania-tools/tools/web-storage-helper';
+import { LocalStorageHelper } from '@lania-tool/tools/web-storage-helper';
 
 interface Preferences {
     theme: 'light' | 'dark';

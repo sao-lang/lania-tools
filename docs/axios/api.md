@@ -7,7 +7,7 @@ import {
     AxiosWrapper,
     AxiosWrapperFactory,
     DebounceThrottleCancelError,
-} from '@lania-tools/tools/axios-wrapper';
+} from '@lania-tool/tools/axios-wrapper';
 ```
 
 ## 构造函数

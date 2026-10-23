@@ -10,13 +10,13 @@
 ## 导入
 
 ```ts
-import { Store } from '@lania-tools/tools/store';
+import { Store } from '@lania-tool/tools/store';
 ```
 
 ## 最小示例
 
 ```ts
-import { Store } from '@lania-tools/tools/store';
+import { Store } from '@lania-tool/tools/store';
 
 const store = new Store({
     initialState: { count: 0 },
@@ -249,8 +249,8 @@ type StorePlugin<S> = {
 ### 示例：持久化插件
 
 ```ts
-import { Store } from '@lania-tools/tools/store';
-import { LocalStorageHelper } from '@lania-tools/tools/web-storage-helper';
+import { Store } from '@lania-tool/tools/store';
+import { LocalStorageHelper } from '@lania-tool/tools/web-storage-helper';
 
 type State = { theme: 'light' | 'dark'; count: number };
 
@@ -289,7 +289,7 @@ const logger: StorePlugin = {
 ## 完整示例：购物车
 
 ```ts
-import { Store } from '@lania-tools/tools/store';
+import { Store } from '@lania-tool/tools/store';
 
 type CartItem = { id: string; name: string; price: number; quantity: number };
 type State = { items: CartItem[]; coupon: string | null };

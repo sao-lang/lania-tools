@@ -1,6 +1,6 @@
 {
-    "name": "@lania-tools/tools",
-    "version": "1.0.3",
+    "name": "@lania-tool/tools",
+    "version": "1.0.2",
     "main": "dist/cjs/index.cjs.cjs",
     "module": "dist/esm/index.esm.js",
     "types": "dist/types/index.d.ts",
@@ -31,6 +31,16 @@
             "import": "./dist/esm/draggable.esm.js",
             "require": "./dist/cjs/draggable.cjs.cjs",
             "types": "./dist/types/draggable.d.ts"
+        },
+        "./carousel": {
+            "import": "./dist/esm/carousel.esm.js",
+            "require": "./dist/cjs/carousel.cjs.cjs",
+            "types": "./dist/types/carousel.d.ts"
+        },
+        "./virtual-scroller": {
+            "import": "./dist/esm/virtual-scroller.esm.js",
+            "require": "./dist/cjs/virtual-scroller.cjs.cjs",
+            "types": "./dist/types/virtual-scroller.d.ts"
         },
         "./logger": {
             "import": "./dist/esm/logger.esm.js",
@@ -86,7 +96,8 @@
             "import": "./dist/esm/websocket-client.esm.js",
             "require": "./dist/cjs/websocket-client.cjs.cjs",
             "types": "./dist/types/websocket-client.d.ts"
-        }
+        },
+        "./package.json": "./package.json"
     },
     "type": "module",
     "keywords": [],

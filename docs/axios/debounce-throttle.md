@@ -51,7 +51,7 @@ export class DebounceThrottleCancelError extends Error {
 - 可用 `error.type` 区分是防抖还是节流。
 
 ```ts
-import { DebounceThrottleCancelError } from '@lania-tools/tools/axios-wrapper';
+import { DebounceThrottleCancelError } from '@lania-tool/tools/axios-wrapper';
 
 try {
     await http.get('/search', { q });
@@ -136,7 +136,7 @@ manager.clear();
 ### 工具层防抖示例
 
 ```ts
-import { debounce } from '@lania-tools/tools/tools';
+import { debounce } from '@lania-tool/tools/tools';
 
 const search = debounce(async (keyword: string) => {
     const { data } = await http.get('/search', { q: keyword }, { cancelTokenId: 'search' });

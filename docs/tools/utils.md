@@ -13,7 +13,7 @@
 | `copy` | 复制文本 / 图片到剪贴板 | 是 |
 
 ```ts
-import { debounce, throttle, deepClone, isDeepEqual, copy } from '@lania-tools/tools/tools';
+import { debounce, throttle, deepClone, isDeepEqual, copy } from '@lania-tool/tools/tools';
 ```
 
 ---
@@ -329,7 +329,7 @@ function copy(options: { text?: string; imageUrl?: string }): Promise<void>;
 ### 示例
 
 ```ts
-import { copy } from '@lania-tools/tools/tools';
+import { copy } from '@lania-tool/tools/tools';
 
 await copy({ text: '邀请码：ABC123' });
 await copy({ imageUrl: 'https://example.com/chart.png' });

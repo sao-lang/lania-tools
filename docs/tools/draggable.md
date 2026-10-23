@@ -7,7 +7,7 @@
 ## 导入
 
 ```ts
-import { Draggable } from '@lania-tools/tools/draggable';
+import { Draggable } from '@lania-tool/tools/draggable';
 ```
 
 ## 快速开始
@@ -205,7 +205,7 @@ element.removeEventListener('touchstart', onTouchStart, { passive: false } as an
 ## 完整示例：可保存位置的面板
 
 ```ts
-import { Draggable } from '@lania-tools/tools/draggable';
+import { Draggable } from '@lania-tool/tools/draggable';
 
 const element = document.getElementById('panel')!;
 const saved = JSON.parse(localStorage.getItem('panel-position') || 'null');

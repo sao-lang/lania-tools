@@ -1,4 +1,4 @@
-# @lania-tools/tools
+# @lania-tool/tools
 
 企业级前端工具函数库，14 个独立模块，覆盖 Web 开发中最高频的使用场景。
 
@@ -27,7 +27,7 @@ npx vitest run --coverage
 ## 架构设计
 
 ```
-@lania-tools/tools
+@lania-tool/tools
 ├── 基础工具层
 │   ├── type.ts              - 类型判断（比 typeof 更准）
 │   ├── tools.ts             - 通用工具（防抖/节流/深拷贝/深比较）
@@ -95,7 +95,7 @@ npx vitest run --coverage
 **使用示例：**
 
 ```typescript
-import { type, isObject, isArray } from '@lania-tools/tools';
+import { type, isObject, isArray } from '@lania-tool/tools';
 
 type(new Map())   // "map"  (typeof 只会返回 "object")
 type(null)        // "null"  (typeof 只会返回 "object")
@@ -112,7 +112,7 @@ type(new Date())  // "date"
 #### debounce — 防抖
 
 ```typescript
-import { debounce } from '@lania-tools/tools';
+import { debounce } from '@lania-tool/tools';
 
 const search = debounce(
   (keyword: string) => {
@@ -131,7 +131,7 @@ search.cancel();
 #### throttle — 节流
 
 ```typescript
-import { throttle } from '@lania-tools/tools';
+import { throttle } from '@lania-tool/tools';
 
 const scroll = throttle(
   (e: Event) => {
@@ -150,7 +150,7 @@ scroll.cancel();
 #### deepClone — 深拷贝
 
 ```typescript
-import { deepClone } from '@lania-tools/tools';
+import { deepClone } from '@lania-tool/tools';
 
 const obj = { a: 1, b: { c: 2 }, d: new Date(), e: new Map() };
 const cloned = deepClone(obj);
@@ -166,7 +166,7 @@ deepClone(circular); // 不会死循环
 #### isDeepEqual — 深比较
 
 ```typescript
-import { isDeepEqual } from '@lania-tools/tools';
+import { isDeepEqual } from '@lania-tool/tools';
 
 isDeepEqual({ a: 1, b: [2, 3] }, { a: 1, b: [2, 3] }); // true
 isDeepEqual(NaN, NaN); // true (Object.is 语义)
@@ -207,7 +207,7 @@ isDeepEqual(NaN, NaN); // true (Object.is 语义)
 **使用示例：**
 
 ```typescript
-import { Validator, Rules } from '@lania-tools/tools';
+import { Validator, Rules } from '@lania-tool/tools';
 
 const validator = new Validator({
   username: [Rules.required('用户名不能为空'), Rules.minLength(3, '至少3个字符')],
@@ -241,7 +241,7 @@ const result = await validator.validate({
 ### 4. format-time.ts — 时间格式化
 
 ```typescript
-import { formatTime } from '@lania-tools/tools';
+import { formatTime } from '@lania-tool/tools';
 
 // 默认格式：YYYY-MM-DD HH:mm:SS
 formatTime(new Date());           // "2025-06-25 14:30:00"
@@ -287,7 +287,7 @@ formatTime(new Date(), (date) => {
 **使用示例：**
 
 ```typescript
-import { LocalStorageHelper } from '@lania-tools/tools';
+import { LocalStorageHelper } from '@lania-tool/tools';
 
 // 基础用法
 LocalStorageHelper.set('token', 'abc123');
@@ -327,7 +327,7 @@ LocalStorageHelper.setMultiple({ a: 1, b: 2 }, { expiresInSeconds: 60 });
 **使用示例：**
 
 ```typescript
-import { EventBus } from '@lania-tools/tools';
+import { EventBus } from '@lania-tool/tools';
 
 const bus = new EventBus();
 
@@ -390,7 +390,7 @@ Store
 **使用示例：**
 
 ```typescript
-import { Store } from '@lania-tools/tools';
+import { Store } from '@lania-tool/tools';
 
 // 定义 Reducer
 const counterStore = new Store({
@@ -463,7 +463,7 @@ const unsubscribe = counterStore.subscribe((state) => {
 ### 8. sse-client.ts — SSE 客户端
 
 ```typescript
-import { SSEClient } from '@lania-tools/tools';
+import { SSEClient } from '@lania-tool/tools';
 
 const sse = new SSEClient({
   url: '/api/events',
@@ -491,7 +491,7 @@ sse.close();
 ### 9. websocket-client.ts — WebSocket 客户端
 
 ```typescript
-import { WebSocketClient } from '@lania-tools/tools';
+import { WebSocketClient } from '@lania-tool/tools';
 
 const ws = new WebSocketClient({
   url: 'wss://example.com/ws',
@@ -541,7 +541,7 @@ ws.close();
 **使用示例：**
 
 ```typescript
-import { Draggable } from '@lania-tools/tools';
+import { Draggable } from '@lania-tool/tools';
 
 const draggable = new Draggable(document.getElementById('box')!, {
   boundary: { minX: 0, maxX: 500, minY: 0, maxY: 300 },
@@ -576,8 +576,8 @@ draggable.unbindEvents();
 **使用示例：**
 
 ```typescript
-import { createChineseConverter, convertPageChinese } from '@lania-tools/tools';
-import simpledToTraditional from '@lania-tools/json/simpledToTraditional.json';
+import { createChineseConverter, convertPageChinese } from '@lania-tool/tools';
+import simpledToTraditional from '@lania-tool/json/simpledToTraditional.json';
 
 // 方式一：纯文本转换
 const converter = createChineseConverter(500);
@@ -639,7 +639,7 @@ convertPageChinese
 **使用示例：**
 
 ```typescript
-import { Carousel } from '@lania-tools/tools';
+import { Carousel } from '@lania-tool/tools';
 
 // Slide 模式（分段轮播）
 const carousel = new Carousel({
@@ -688,7 +688,7 @@ carousel.destroy();
 **使用示例：**
 
 ```typescript
-import { VirtualScroller } from '@lania-tools/tools';
+import { VirtualScroller } from '@lania-tool/tools';
 
 const scroller = new VirtualScroller({
   containerSelector: '.scroll-container',
@@ -784,7 +784,7 @@ VirtualScroller
 **使用示例：**
 
 ```typescript
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 
 const http = new AxiosWrapper(
   {
@@ -874,19 +874,19 @@ InterceptorManager.doubleTokenMiddleware
 
 ## 独立入口导出
 
-除了主入口 `@lania-tools/tools`，每个模块都有独立入口，减小打包体积：
+除了主入口 `@lania-tool/tools`，每个模块都有独立入口，减小打包体积：
 
 ```typescript
 // 只引入需要的模块
-import { debounce, throttle } from '@lania-tools/tools/tools';
-import { formatTime } from '@lania-tools/tools/format-time';
-import { EventBus } from '@lania-tools/tools/event-bus';
-import { Store } from '@lania-tools/tools/store';
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
-import { Draggable } from '@lania-tools/tools/draggable';
-import { WebSocketClient } from '@lania-tools/tools/websocket-client';
-import { SSEClient } from '@lania-tools/tools/sse-client';
-import { Validator, Rules } from '@lania-tools/tools/validator';
-import { LocalStorageHelper } from '@lania-tools/tools/web-storage-helper';
-import { createChineseConverter } from '@lania-tools/tools/convert-chinese-text';
+import { debounce, throttle } from '@lania-tool/tools/tools';
+import { formatTime } from '@lania-tool/tools/format-time';
+import { EventBus } from '@lania-tool/tools/event-bus';
+import { Store } from '@lania-tool/tools/store';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
+import { Draggable } from '@lania-tool/tools/draggable';
+import { WebSocketClient } from '@lania-tool/tools/websocket-client';
+import { SSEClient } from '@lania-tool/tools/sse-client';
+import { Validator, Rules } from '@lania-tool/tools/validator';
+import { LocalStorageHelper } from '@lania-tool/tools/web-storage-helper';
+import { createChineseConverter } from '@lania-tool/tools/convert-chinese-text';
 ```

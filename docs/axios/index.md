@@ -9,7 +9,7 @@
 ## 最小示例
 
 ```ts
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 
 const http = new AxiosWrapper(
     { baseURL: '/api', timeout: 10_000 },

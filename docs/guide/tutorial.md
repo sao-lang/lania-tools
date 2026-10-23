@@ -24,7 +24,7 @@ src/
 ```ts
 // src/services/http.ts
 import axios from 'axios';
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 
 export const http = new AxiosWrapper(
     {
@@ -60,7 +60,7 @@ Token 存在哪里取决于安全要求：
 
 ```ts
 // src/services/session.ts
-import { LocalStorageHelper } from '@lania-tools/tools/web-storage-helper';
+import { LocalStorageHelper } from '@lania-tool/tools/web-storage-helper';
 
 const ACCESS_KEY = 'access_token';
 const REFRESH_KEY = 'refresh_token';
@@ -206,7 +206,7 @@ export const userHttp = new AxiosWrapper(
 
 ```ts
 // src/services/search.ts
-import { debounce } from '@lania-tools/tools/tools';
+import { debounce } from '@lania-tool/tools/tools';
 import { http } from './http';
 
 export interface SearchResult {
@@ -343,8 +343,8 @@ export function cancelExport() {
 
 ```ts
 // src/services/realtime.ts
-import { EventBus } from '@lania-tools/tools/event-bus';
-import { SSEClient } from '@lania-tools/tools/sse-client';
+import { EventBus } from '@lania-tool/tools/event-bus';
+import { SSEClient } from '@lania-tool/tools/sse-client';
 
 export const bus = new EventBus();
 bus.registerNamespace('realtime');
@@ -387,8 +387,8 @@ export function disconnectRealtime(): void {
 
 ```ts
 // src/store/app.ts
-import { Store } from '@lania-tools/tools/store';
-import { LocalStorageHelper } from '@lania-tools/tools/web-storage-helper';
+import { Store } from '@lania-tool/tools/store';
+import { LocalStorageHelper } from '@lania-tool/tools/web-storage-helper';
 
 export interface AppState {
     user: { id: number; name: string } | null;
@@ -445,8 +445,8 @@ bus.on('notification', () => appStore.actions.incNotifications(), {
 ```ts
 // src/services/http.ts（最终版）
 import axios from 'axios';
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
-import { createLogger } from '@lania-tools/tools/logger';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
+import { createLogger } from '@lania-tool/tools/logger';
 import { session } from './session';
 
 const log = createLogger({ name: 'http', timestamp: true, historySize: 50 });

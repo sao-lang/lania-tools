@@ -12,7 +12,7 @@
 ## 导入
 
 ```ts
-import { Carousel } from '@lania-tools/tools/carousel';
+import { Carousel } from '@lania-tool/tools/carousel';
 ```
 
 ## HTML 结构
@@ -270,7 +270,7 @@ carousel.destroy();
 ## 完整示例
 
 ```ts
-import { Carousel } from '@lania-tools/tools/carousel';
+import { Carousel } from '@lania-tool/tools/carousel';
 
 const carousel = new Carousel({
     mode: 'slide',

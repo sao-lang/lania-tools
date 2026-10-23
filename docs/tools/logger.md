@@ -15,13 +15,13 @@
 | 线上突然要开 debug | `setGlobalLevel('debug')` 一键切换 |
 
 ```ts
-import { createLogger } from '@lania-tools/tools/logger';
+import { createLogger } from '@lania-tool/tools/logger';
 ```
 
 ## 最小示例
 
 ```ts
-import { createLogger } from '@lania-tools/tools/logger';
+import { createLogger } from '@lania-tool/tools/logger';
 
 const log = createLogger({ name: 'api' });
 
@@ -103,7 +103,7 @@ createLogger({ level: 'verbose' as any }); // Error: Invalid log level: verbose
 按名称获取**共享**实例，同名多次调用返回同一个对象。
 
 ```ts
-import { getLogger } from '@lania-tools/tools/logger';
+import { getLogger } from '@lania-tool/tools/logger';
 
 const a = getLogger('api');
 const b = getLogger('api');
@@ -282,7 +282,7 @@ createLogger({ name: 'api' }).info('hello');        // [api] [INFO] hello
 | `JSON.stringify` 抛错 | `String(value)` |
 
 ```ts
-import { safeStringify } from '@lania-tools/tools/logger';
+import { safeStringify } from '@lania-tool/tools/logger';
 
 const payload: any = { id: 1 };
 payload.self = payload;
@@ -294,7 +294,7 @@ safeStringify(payload); // '{"id":1,"self":"[Circular]"}'
 把一条记录格式化成单行字符串，适合写入文件或随请求上报：
 
 ```ts
-import { formatLogRecord } from '@lania-tools/tools/logger';
+import { formatLogRecord } from '@lania-tool/tools/logger';
 
 formatLogRecord({
     level: 'warn',
@@ -311,7 +311,7 @@ formatLogRecord({
 ## 全局控制
 
 ```ts
-import { getGlobalLevel, setGlobalLevel } from '@lania-tools/tools/logger';
+import { getGlobalLevel, setGlobalLevel } from '@lania-tool/tools/logger';
 
 setGlobalLevel('debug'); // 影响所有已创建实例与后续实例
 getGlobalLevel();        // 'debug'
@@ -336,8 +336,8 @@ if (new URLSearchParams(location.search).has('debug')) {
 ### 全局错误日志
 
 ```ts
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
-import { createLogger } from '@lania-tools/tools/logger';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
+import { createLogger } from '@lania-tool/tools/logger';
 
 const log = createLogger({ name: 'http', timestamp: true, historySize: 50 });
 
@@ -406,8 +406,8 @@ refreshAccessToken: async (refreshToken) => {
 ## 与 Store / EventBus 集成
 
 ```ts
-import { Store } from '@lania-tools/tools/store';
-import { createLogger } from '@lania-tools/tools/logger';
+import { Store } from '@lania-tool/tools/store';
+import { createLogger } from '@lania-tool/tools/logger';
 
 const log = createLogger({ name: 'store' });
 
@@ -432,8 +432,8 @@ const store = new Store({
 EventBus 没有通配符监听，需要记录事件时在自己的发事件入口包一层：
 
 ```ts
-import { EventBus } from '@lania-tools/tools/event-bus';
-import { createLogger } from '@lania-tools/tools/logger';
+import { EventBus } from '@lania-tool/tools/event-bus';
+import { createLogger } from '@lania-tool/tools/logger';
 
 const bus = new EventBus();
 const log = createLogger({ name: 'bus' });
@@ -475,7 +475,7 @@ const remote = createLogger({
 ### 同时输出到控制台与内存
 
 ```ts
-import { defaultLogHandler } from '@lania-tools/tools/logger';
+import { defaultLogHandler } from '@lania-tool/tools/logger';
 
 const buffer: string[] = [];
 

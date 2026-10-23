@@ -5,7 +5,7 @@
 规则化的数据校验器：支持同步 / 异步规则、跨字段校验、动态规则与结果缓存。
 
 ```ts
-import { Validator, Rules } from '@lania-tools/tools/validator';
+import { Validator, Rules } from '@lania-tool/tools/validator';
 ```
 
 ## 最小示例
@@ -297,7 +297,7 @@ const validator = new Validator({ name: () => ({ status: false }) });
 ## 完整示例：注册表单
 
 ```ts
-import { Validator, Rules } from '@lania-tools/tools/validator';
+import { Validator, Rules } from '@lania-tool/tools/validator';
 
 type RegisterForm = {
     username: string;

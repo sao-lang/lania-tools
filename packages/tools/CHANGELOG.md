@@ -1,4 +1,10 @@
-# @lania-tools/tools
+# @lania-tool/tools
+
+## 1.0.1
+
+### Patch Changes
+
+-   新增 `exports` 字段：`@lania-tool/json` 支持默认导入与子路径导入，`@lania-tool/tools` 补齐缺失的 `carousel`、`virtual-scroller` 子路径导出
 
 ## 1.0.3
 

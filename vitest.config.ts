@@ -20,7 +20,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            '@lania-tools/tools': path.resolve(__dirname, 'packages/tools/src'),
+            '@lania-tool/tools': path.resolve(__dirname, 'packages/tools/src'),
         },
     },
 });

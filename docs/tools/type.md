@@ -19,7 +19,7 @@ import {
     isHTMLElement,
     isPrimitive,
     isFalsy,
-} from '@lania-tools/tools/type';
+} from '@lania-tool/tools/type';
 ```
 
 ## `type(obj): VarTypes`
@@ -216,7 +216,7 @@ isFalsy('false');    // false
 ## 组合示例：安全的数据归一化
 
 ```ts
-import { type, isArrayLike, isPrimitive } from '@lania-tools/tools/type';
+import { type, isArrayLike, isPrimitive } from '@lania-tool/tools/type';
 
 function normalize(input: unknown): string[] {
     if (input == null) return [];

@@ -19,7 +19,7 @@ type VarTypes =
 ### `TimeFormatter`
 
 ```ts
-import type { TimeFormatter } from '@lania-tools/tools/format-time';
+import type { TimeFormatter } from '@lania-tool/tools/format-time';
 
 const iso: TimeFormatter = (time) => time.toISOString();
 ```
@@ -32,7 +32,7 @@ import type {
     ValidationRuleResult,
     ValidationRuleFn,
     ValidationRules,
-} from '@lania-tools/tools/validator';
+} from '@lania-tool/tools/validator';
 
 type UserForm = { name: string; age: number };
 
@@ -66,7 +66,7 @@ import type {
     ReducersMap,
     PathType,
     FromPathType,
-} from '@lania-tools/tools/store';
+} from '@lania-tool/tools/store';
 ```
 
 ### 基本用法
@@ -129,7 +129,7 @@ await store.dispatch(action);
 ## 事件总线
 
 ```ts
-import type { EventContext, EventHandler, AsyncEventHandler } from '@lania-tools/tools/event-bus';
+import type { EventContext, EventHandler, AsyncEventHandler } from '@lania-tool/tools/event-bus';
 
 const handler: EventHandler<{ id: number }> = (data) => console.log(data?.id);
 const asyncHandler: AsyncEventHandler<{ id: number }> = async (data, ctx: EventContext) => {};
@@ -144,7 +144,7 @@ const asyncHandler: AsyncEventHandler<{ id: number }> = async (data, ctx: EventC
 ## 存储
 
 ```ts
-import type { StorageOptions } from '@lania-tools/tools/web-storage-helper';
+import type { StorageOptions } from '@lania-tool/tools/web-storage-helper';
 
 const options: StorageOptions = { expiresInSeconds: 600, encryptData: true };
 LocalStorageHelper.set('key', { a: 1 }, options);
@@ -153,7 +153,7 @@ LocalStorageHelper.set('key', { a: 1 }, options);
 ## 日志
 
 ```ts
-import type { LogHandler, LogLevel, LogRecord, LoggerOptions } from '@lania-tools/tools/logger';
+import type { LogHandler, LogLevel, LogRecord, LoggerOptions } from '@lania-tool/tools/logger';
 
 const level: LogLevel = 'info';
 
@@ -180,11 +180,11 @@ const handler: LogHandler = (record: LogRecord) => {
 ## 客户端选项
 
 ```ts
-import type { SSEOptions } from '@lania-tools/tools/sse-client';
-import type { WebSocketOptions } from '@lania-tools/tools/websocket-client';
-import type { SuperCarouselOptions } from '@lania-tools/tools/carousel';
-import type { VirtualScrollerOptions } from '@lania-tools/tools/virtual-scroller';
-import type { ConvertOptions } from '@lania-tools/tools/convert-chinese-text';
+import type { SSEOptions } from '@lania-tool/tools/sse-client';
+import type { WebSocketOptions } from '@lania-tool/tools/websocket-client';
+import type { SuperCarouselOptions } from '@lania-tool/tools/carousel';
+import type { VirtualScrollerOptions } from '@lania-tool/tools/virtual-scroller';
+import type { ConvertOptions } from '@lania-tool/tools/convert-chinese-text';
 ```
 
 ```ts
@@ -211,7 +211,7 @@ import type {
     DraggableOptions,
     DragBoundary,
     CustomDragEvent,
-} from '@lania-tools/tools/draggable';
+} from '@lania-tool/tools/draggable';
 
 const boundary: DragBoundary = { minX: 0, maxX: 400 };
 const options: DraggableOptions = {
@@ -233,7 +233,7 @@ import type {
     WrapperOptions,
     UploadFileOptions,
     PollingConfig,
-} from '@lania-tools/tools/axios-wrapper';
+} from '@lania-tool/tools/axios-wrapper';
 ```
 
 > `WrapperOptions` 由 `axios-wrapper` 入口导出；`UploadFileOptions` 与 `PollingConfig` 同样从该入口导出，可直接用于包装业务函数。

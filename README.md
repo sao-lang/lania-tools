@@ -18,8 +18,8 @@
 
 | 包名 | 说明 | 模块数 |
 |------|------|--------|
-| [@lania-tools/tools](./packages/tools/README.md) | 核心工具库，14 个模块 | 14 |
-| [@lania-tools/json](./packages/json/README.md) | 简繁体中文转换字典数据 | 2 |
+| [@lania-tool/tools](./packages/tools/README.md) | 核心工具库，14 个模块 | 14 |
+| [@lania-tool/json](./packages/json/README.md) | 简繁体中文转换字典数据 | 2 |
 
 ## 快速上手
 
@@ -27,27 +27,27 @@
 
 ```bash
 # 安装核心工具库
-npm install @lania-tools/tools
+npm install @lania-tool/tools
 
 # 安装 JSON 数据包（可选，用于简繁体转换）
-npm install @lania-tools/json
+npm install @lania-tool/json
 ```
 
 ### 按需引入
 
 ```typescript
 // 从主入口引入
-import { debounce, throttle, deepClone, formatTime } from '@lania-tools/tools';
+import { debounce, throttle, deepClone, formatTime } from '@lania-tool/tools';
 
 // 从独立入口引入（更小的打包体积）
-import { debounce, throttle } from '@lania-tools/tools/tools';
-import { formatTime } from '@lania-tools/tools/format-time';
-import { EventBus } from '@lania-tools/tools/event-bus';
-import { Store } from '@lania-tools/tools/store';
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
-import { Draggable } from '@lania-tools/tools/draggable';
-import { WebSocketClient } from '@lania-tools/tools/websocket-client';
-import { SSEClient } from '@lania-tools/tools/sse-client';
+import { debounce, throttle } from '@lania-tool/tools/tools';
+import { formatTime } from '@lania-tool/tools/format-time';
+import { EventBus } from '@lania-tool/tools/event-bus';
+import { Store } from '@lania-tool/tools/store';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
+import { Draggable } from '@lania-tool/tools/draggable';
+import { WebSocketClient } from '@lania-tool/tools/websocket-client';
+import { SSEClient } from '@lania-tool/tools/sse-client';
 ```
 
 ## 模块全景
@@ -55,7 +55,7 @@ import { SSEClient } from '@lania-tools/tools/sse-client';
 ```
 lania-tools
 ├── packages/
-│   ├── tools/                          # 核心工具库 @lania-tools/tools
+│   ├── tools/                          # 核心工具库 @lania-tool/tools
 │   │   └── src/
 │   │       ├── index.ts                # 主入口
 │   │       ├── type.ts                 # 类型判断（type, isFunction, isArray...）
@@ -83,7 +83,7 @@ lania-tools
 │   │           ├── helper.ts           # 辅助函数
 │   │           └── const.ts            # 常量定义
 │   │
-│   └── json/                           # JSON 数据包 @lania-tools/json
+│   └── json/                           # JSON 数据包 @lania-tool/json
 │       ├── simpledToTraditional.json   # 简体 → 繁体映射
 │       └── traditionalToSimpled.json   # 繁体 → 简体映射
 │

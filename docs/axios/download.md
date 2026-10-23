@@ -116,7 +116,7 @@ http.cancelRequest('zip');
 ## 完整示例：带加载与错误处理的导出
 
 ```ts
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 
 const http = new AxiosWrapper({ baseURL: '/api' }, { timeout: 120_000 });
 

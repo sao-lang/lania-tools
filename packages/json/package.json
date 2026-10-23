@@ -1,13 +1,20 @@
 {
-    "name": "@lania-tools/json",
-    "version": "0.0.2",
+    "name": "@lania-tool/json",
+    "version": "0.0.3",
     "publishConfig": {
         "access": "public"
     },
     "files": [
-        "dist",
+        "simpledToTraditional.json",
+        "traditionalToSimpled.json",
         "CHANGELOG.md"
     ],
+    "exports": {
+        ".": "./simpledToTraditional.json",
+        "./simpledToTraditional.json": "./simpledToTraditional.json",
+        "./traditionalToSimpled.json": "./traditionalToSimpled.json",
+        "./package.json": "./package.json"
+    },
     "type": "module",
     "keywords": [],
     "author": "",

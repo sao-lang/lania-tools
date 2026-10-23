@@ -7,7 +7,7 @@
 ## 导入
 
 ```ts
-import { VirtualScroller } from '@lania-tools/tools/virtual-scroller';
+import { VirtualScroller } from '@lania-tool/tools/virtual-scroller';
 ```
 
 ## 快速开始
@@ -19,7 +19,7 @@ import { VirtualScroller } from '@lania-tools/tools/virtual-scroller';
 ```
 
 ```ts
-import { VirtualScroller } from '@lania-tools/tools/virtual-scroller';
+import { VirtualScroller } from '@lania-tool/tools/virtual-scroller';
 
 const scroller = new VirtualScroller({
     containerSelector: '#list',
@@ -216,7 +216,7 @@ window.addEventListener('resize', this.onResize.bind(this));
 ## 完整示例：带自定义渲染的聊天记录
 
 ```ts
-import { VirtualScroller } from '@lania-tools/tools/virtual-scroller';
+import { VirtualScroller } from '@lania-tool/tools/virtual-scroller';
 
 let cursor = 0;
 

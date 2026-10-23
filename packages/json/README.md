@@ -1,4 +1,4 @@
-# @lania-tools/json
+# @lania-tool/json
 
 简繁体中文转换字典数据包，提供简体→繁体、繁体→简体的双向映射表。
 
@@ -14,9 +14,9 @@
 ### 与 convert-chinese-text 配合使用
 
 ```typescript
-import { createChineseConverter, convertPageChinese } from '@lania-tools/tools/convert-chinese-text';
-import simpledToTraditional from '@lania-tools/json/simpledToTraditional.json';
-import traditionalToSimpled from '@lania-tools/json/traditionalToSimpled.json';
+import { createChineseConverter, convertPageChinese } from '@lania-tool/tools/convert-chinese-text';
+import simpledToTraditional from '@lania-tool/json/simpledToTraditional.json';
+import traditionalToSimpled from '@lania-tool/json/traditionalToSimpled.json';
 
 // 文本转换
 const toTraditional = createChineseConverter(500);
@@ -32,7 +32,7 @@ convertPageChinese(simpledToTraditional, document.body);
 ### 直接使用
 
 ```typescript
-import simpledToTraditional from '@lania-tools/json/simpledToTraditional.json';
+import simpledToTraditional from '@lania-tool/json/simpledToTraditional.json';
 
 // 字典是一个简单的 Record<string, string>
 simpledToTraditional['国']; // "國"
@@ -60,4 +60,4 @@ Object.entries(simpledToTraditional).forEach(([simplified, traditional]) => {
 
 - 字典基于字符级映射，不支持词组级转换（如 "头发" → "頭髮" 需要结合上下文）
 - 适用于常见简繁体转换场景，不覆盖所有生僻字
-- 与 `@lania-tools/tools` 的 `convert-chinese-text` 模块配合使用效果最佳
+- 与 `@lania-tool/tools` 的 `convert-chinese-text` 模块配合使用效果最佳

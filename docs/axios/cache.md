@@ -168,7 +168,7 @@ token → cache → debounce → throttle → custom
 ## 完整示例：字典缓存
 
 ```ts
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
 
 export const http = new AxiosWrapper(
     { baseURL: '/api' },

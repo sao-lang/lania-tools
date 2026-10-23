@@ -22,7 +22,7 @@
 import {
     createChineseConverter,
     convertPageChinese,
-} from '@lania-tools/tools/convert-chinese-text';
+} from '@lania-tool/tools/convert-chinese-text';
 ```
 
 ## createChineseConverter
@@ -245,7 +245,7 @@ const handleMutations = (mutations) => {
 ## 完整示例：繁体转简体
 
 ```ts
-import { convertPageChinese } from '@lania-tools/tools/convert-chinese-text';
+import { convertPageChinese } from '@lania-tool/tools/convert-chinese-text';
 
 const traditionalToSimplified = {
     記憶: '记忆',

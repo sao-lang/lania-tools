@@ -1,5 +1,5 @@
 {
-    "name": "@lania-tools",
+    "name": "@lania-tool",
     "version": "0.0.1",
     "type": "module",
     "scripts": {
@@ -8,7 +8,7 @@
         "changeset": "changeset",
         "vp": "changeset version",
         "release": "pnpm build && pnpm release:only",
-        "release:only": "nrm use npm && changeset publish --registry=https://registry.npmjs.org && nrm use taobao",
+        "release:only": "nrm use npm && changeset publish",
         "prepare": "husky install",
         "eslint": "eslint ./**/*.ts --fix",
         "build": "gulp --gulpfile scripts/gulpfile.cjs build",
@@ -19,8 +19,8 @@
         "commit": "git add . && cz"
     },
     "dependencies": {
-        "@lania-tools/json": "workspace:^",
-        "@lania-tools/tools": "workspace:^"
+        "@lania-tool/json": "workspace:^",
+        "@lania-tool/tools": "workspace:^"
     },
     "devDependencies": {
         "@changesets/cli": "^2.27.1",

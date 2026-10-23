@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: '@lania-tools/tools'
+  name: '@lania-tool/tools'
   text: 前端工具库完整手册
   tagline: 从请求层到 DOM 组件，每个特性都有原理、API、示例与测试
   image:
@@ -39,7 +39,7 @@ features:
 2. **浏览器 API 的兼容层**：存储、SSE、WebSocket、剪贴板，异常分支很多。
 3. **交互组件的细节**：拖拽边界、虚拟滚动测量、轮播无缝循环，正确实现比看起来难。
 
-`@lania-tools/tools` 把它们拆成互不耦合的模块，可以只引入需要的部分。
+`@lania-tool/tools` 把它们拆成互不耦合的模块，可以只引入需要的部分。
 
 ## 文档如何使用
 
@@ -57,9 +57,9 @@ features:
 ## 快速示例
 
 ```ts
-import { AxiosWrapper } from '@lania-tools/tools/axios-wrapper';
-import { EventBus } from '@lania-tools/tools/event-bus';
-import { debounce } from '@lania-tools/tools/tools';
+import { AxiosWrapper } from '@lania-tool/tools/axios-wrapper';
+import { EventBus } from '@lania-tool/tools/event-bus';
+import { debounce } from '@lania-tool/tools/tools';
 
 const http = new AxiosWrapper(
     { baseURL: '/api' },

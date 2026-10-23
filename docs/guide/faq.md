@@ -2,9 +2,9 @@
 
 ## 安装与引入
 
-### 为什么 `import { EventBus } from '@lania-tools/tools'` 在某些构建器里失败？
+### 为什么 `import { EventBus } from '@lania-tool/tools'` 在某些构建器里失败？
 
-优先使用子路径（`@lania-tools/tools/event-bus`）。全量入口会引入所有模块的类型与副作用，部分构建器对 `exports` 条件解析较严格，子路径最稳。
+优先使用子路径（`@lania-tool/tools/event-bus`）。全量入口会引入所有模块的类型与副作用，部分构建器对 `exports` 条件解析较严格，子路径最稳。
 
 ### 可以在 Node 服务端使用吗？
 
@@ -163,7 +163,7 @@ reducer 必须返回**新对象**。原地修改并返回同一引用会被判�
 ### 生产环境怎么关掉日志？
 
 ```ts
-import { setGlobalLevel } from '@lania-tools/tools/logger';
+import { setGlobalLevel } from '@lania-tool/tools/logger';
 
 if (import.meta.env.PROD) setGlobalLevel('warn');
 ```
@@ -201,7 +201,7 @@ createLogger({
 可以：
 
 ```ts
-import { debounce } from '@lania-tools/tools/tools';
+import { debounce } from '@lania-tool/tools/tools';
 ```
 
 子路径入口 + ESM 可以精确到单个函数。
